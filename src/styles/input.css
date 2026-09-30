@@ -1,0 +1,23 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body { 
+    background-color: #09090A; 
+    color: #E1E1E6; 
+    font-family: ui-sans-serif, system-ui, sans-serif; 
+}
+
+/* Ocultar barra de rolagem nos dias da semana */
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Estilos do Carrossel */
+.carousel-container { position: relative; width: 100%; height: 200px; overflow: hidden; border-radius: 0.5rem; }
+.carousel-slide { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; transition: opacity 0.3s ease-in-out; display: flex; align-items: center; justify-content: center; background-color: #121214; }
+.carousel-slide.active { opacity: 1; z-index: 10; }
+.carousel-slide img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.carousel-btn { position: absolute; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,0.5); color: white; border: none; padding: 0.5rem 1rem; cursor: pointer; z-index: 20; border-radius: 0.25rem; }
+.carousel-btn:hover { background: rgba(130, 87, 229, 0.8); }
+.carousel-btn.prev { left: 10px; }
+.carousel-btn.next { right: 10px; }
