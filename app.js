@@ -1,20 +1,22 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.5.0/firebase-app.js";
 import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.5.0/firebase-firestore.js";
+import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.5.0/firebase-auth.js";
 
 // ==========================================
 // COLOQUE SUAS CHAVES DO FIREBASE AQUI
 // ==========================================
 const firebaseConfig = {
-    apiKey: "SUA_API_KEY",
-    authDomain: "SEU_DOMAIN",
-    projectId: "SEU_PROJECT_ID",
-    storageBucket: "SEU_STORAGE_BUCKET",
-    messagingSenderId: "SEU_SENDER",
-    appId: "SEU_APP_ID"
+  apiKey: "AIzaSyCVwshlGT_fpe-EdiYZDu0pPNrF9SexsFY",
+  authDomain: "meu-treino-eabf2.firebaseapp.com",
+  projectId: "meu-treino-eabf2",
+  storageBucket: "meu-treino-eabf2.firebasestorage.app",
+  messagingSenderId: "1007083750494",
+  appId: "1:1007083750494:web:cc75113ed18a78dbbca0cf"
 };
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const auth = getAuth(app); // Inicializa o serviço de autenticação
 
 const daysOfWeek = ['Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado', 'Domingo'];
 let currentDay = 'Segunda-feira';
@@ -198,5 +200,18 @@ window.closeModals = function() {
     document.getElementById('mediaModal').classList.replace('flex', 'hidden');
 }
 
-// Inicia o carregamento quando o script roda
-loadFromFirebase();
+// Monitora o estado de autenticação (Faz login invisível antes de buscar os dados)
+onAuthStateChanged(auth, async (user) => {
+    if (user) {
+        // Já está autenticado, carrega o treino
+        loadFromFirebase();
+    } else {
+        // Se não tiver sessão ativa, autentica anonimamente
+        try {
+            await signInAnonymously(auth);
+        } catch (error) {
+            console.error("Erro no login anônimo:", error);
+            document.getElementById('statusText').innerHTML = '<i class="fa-solid fa-triangle-exclamation text-red-500 mr-1"></i> Erro de autenticação';
+        }
+    }
+});
