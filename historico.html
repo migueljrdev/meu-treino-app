@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Histórico de Treinos</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="min-h-screen p-4 md:p-8 bg-dark">
+
+    <div class="max-w-3xl mx-auto">
+        <header class="flex justify-between items-center mb-8">
+            <div>
+                <h1 class="text-2xl font-bold text-white"><i class="fa-regular fa-calendar-check text-brand mr-2"></i>Meu Histórico</h1>
+                <p class="text-gray-400 text-sm mt-1" id="historyStatus">Carregando histórico...</p>
+            </div>
+            <a href="index.html" class="text-gray-400 hover:text-white text-sm transition-colors flex items-center bg-card px-4 py-2 rounded-lg border border-gray-800">
+                <i class="fa-solid fa-arrow-left mr-2"></i> Voltar ao Treino
+            </a>
+        </header>
+
+        <!-- Navegação de Abas -->
+        <div class="flex gap-2 mb-6 border-b border-gray-800 pb-2">
+            <button onclick="switchTab('calendar')" id="tab-calendar" class="px-4 py-2 text-brand font-medium border-b-2 border-brand">Calendário</button>
+            <button onclick="switchTab('progress')" id="tab-progress" class="px-4 py-2 text-gray-500 hover:text-gray-300 font-medium border-b-2 border-transparent">Comparar Evolução</button>
+        </div>
+
+        <!-- ABA: CALENDÁRIO -->
+        <div id="view-calendar" class="block">
+            <div class="bg-card rounded-xl p-6 shadow-lg border border-gray-800 mb-6">
+                <div class="flex justify-between items-center mb-4">
+                    <button onclick="changeMonth(-1)" class="text-gray-400 hover:text-white p-2"><i class="fa-solid fa-chevron-left"></i></button>
+                    <h2 id="monthTitle" class="text-lg font-bold text-white capitalize">Outubro 2026</h2>
+                    <button onclick="changeMonth(1)" class="text-gray-400 hover:text-white p-2"><i class="fa-solid fa-chevron-right"></i></button>
+                </div>
+                
+                <!-- Grid do Calendário -->
+                <div class="grid grid-cols-7 gap-1 sm:gap-2 text-center text-sm mb-2" id="calendarHeader">
+                    <div class="text-gray-500 font-medium">Dom</div><div class="text-gray-500 font-medium">Seg</div>
+                    <div class="text-gray-500 font-medium">Ter</div><div class="text-gray-500 font-medium">Qua</div>
+                    <div class="text-gray-500 font-medium">Qui</div><div class="text-gray-500 font-medium">Sex</div>
+                    <div class="text-gray-500 font-medium">Sáb</div>
+                </div>
+                <div class="grid grid-cols-7 gap-1 sm:gap-2 text-center" id="calendarDays">
+                    <!-- Dias gerados via JS -->
+                </div>
+            </div>
+
+            <!-- Detalhes do dia selecionado -->
+            <div id="dayDetails" class="bg-card rounded-xl p-6 shadow-lg border border-gray-800 hidden">
+                <h3 id="selectedDateTitle" class="text-lg font-bold text-brand mb-4">Treino do dia</h3>
+                <ul id="selectedDayList" class="space-y-3"></ul>
+            </div>
+        </div>
+
+        <!-- ABA: EVOLUÇÃO (Progresso) -->
+        <div id="view-progress" class="hidden">
+            <div class="bg-card rounded-xl p-6 shadow-lg border border-gray-800">
+                <label class="block text-sm text-gray-400 mb-2">Escolha o dia da semana para comparar as últimas 4 semanas:</label>
+                
+                <!-- Novo Select por Dia -->
+                <select id="daySelect" onchange="renderProgress()" class="w-full bg-dark border border-gray-700 rounded-lg px-4 py-3 text-white mb-6">
+                    <option value="">Selecione um dia...</option>
+                    <option value="Segunda-feira">Segunda-feira</option>
+                    <option value="Terça-feira">Terça-feira</option>
+                    <option value="Quarta-feira">Quarta-feira</option>
+                    <option value="Quinta-feira">Quinta-feira</option>
+                    <option value="Sexta-feira">Sexta-feira</option>
+                    <option value="Sábado">Sábado</option>
+                    <option value="Domingo">Domingo</option>
+                </select>
+
+                <div class="overflow-x-auto pb-4">
+                    <!-- Tabela com largura mínima para não espremer no celular -->
+                    <table class="w-full text-left border-collapse min-w-[600px]">
+                        <thead>
+                            <tr id="progressTableHeader" class="border-b border-gray-700 text-gray-400 text-sm">
+                                <!-- O cabeçalho será gerado pelo JS (Exercício | Data 1 | Data 2 | ... | Atual) -->
+                            </tr>
+                        </thead>
+                        <tbody id="progressTableBody">
+                            <!-- Preenchido via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    <script type="module" src="historico.js"></script>
+</body>
+</html>
