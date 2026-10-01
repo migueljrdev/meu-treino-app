@@ -98,11 +98,15 @@ window.renderExercises = function() {
         strengthEx.forEach(ex => {
             const tr = document.createElement('tr');
             tr.className = 'border-b border-gray-800 hover:bg-gray-800/30';
+            
+            // VERIFICA SE O PESO É 0 PARA ESCREVER "Corporal"
+            const pesoExibicao = (ex.weight > 0) ? `${ex.weight}kg` : '<span class="text-[10px] uppercase text-gray-500">Corporal</span>';
+
             tr.innerHTML = `
                 <td class="py-4 text-white font-medium">${ex.name}</td>
                 <td class="py-4 text-gray-300 text-center">${ex.sets}</td>
                 <td class="py-4 text-gray-300 text-center">${ex.reps}</td>
-                <td class="py-4 text-brand font-bold text-center">${ex.weight > 0 ? ex.weight : '-'}</td>
+                <td class="py-4 text-brand font-bold text-center">${pesoExibicao}</td>
                 <td class="py-4 text-right space-x-2">
                     <button onclick="openMediaModal('${ex.name}')" class="text-gray-500 hover:text-brand p-2 bg-gray-800/50 rounded"><i class="fa-solid fa-play"></i></button>
                     <button onclick="editExercise(${ex.id})" class="text-gray-500 hover:text-white p-2"><i class="fa-solid fa-pen"></i></button>
@@ -173,6 +177,9 @@ window.openAddModal = function() {
     document.getElementById('modalTitle').innerText = 'Adicionar Exercício';
     document.getElementById('editId').value = '';
     ['exName', 'exSets', 'exReps', 'exWeight', 'exDistance', 'exTime'].forEach(id => document.getElementById(id).value = '');
+    
+    // Reseta o menu de Reps para o padrão
+    document.getElementById('exRepsUnit').value = ''; 
     document.getElementById('exPace').value = 'Leve';
     
     document.querySelector('input[value="strength"]').checked = true;
@@ -195,7 +202,20 @@ window.editExercise = function(id) {
 
         if (type === 'strength') {
             document.getElementById('exSets').value = ex.sets;
-            document.getElementById('exReps').value = ex.reps;
+            
+            // Lógica para separar o número da unidade quando for editar
+            let repsStr = String(ex.reps || "");
+            if (repsStr.includes('min')) {
+                document.getElementById('exReps').value = repsStr.replace('min', '').trim();
+                document.getElementById('exRepsUnit').value = 'min';
+            } else if (repsStr.includes('s')) {
+                document.getElementById('exReps').value = repsStr.replace('s', '').trim();
+                document.getElementById('exRepsUnit').value = 's';
+            } else {
+                document.getElementById('exReps').value = repsStr;
+                document.getElementById('exRepsUnit').value = '';
+            }
+
             document.getElementById('exWeight').value = ex.weight;
         } else {
             document.getElementById('exDistance').value = ex.distance;
@@ -219,7 +239,19 @@ window.saveExercise = function() {
 
     if (type === 'strength') {
         exerciseObj.sets = parseInt(document.getElementById('exSets').value) || 0;
-        exerciseObj.reps = parseInt(document.getElementById('exReps').value) || 0;
+        
+        // Pega no número e junta à unidade escolhida (min, seg ou nada)
+        const repsValue = document.getElementById('exReps').value;
+        const repsUnit = document.getElementById('exRepsUnit').value;
+        
+        if (!repsValue) {
+            exerciseObj.reps = "0";
+        } else if (repsUnit === "") {
+            exerciseObj.reps = repsValue; // Ex: Fica só "15"
+        } else {
+            exerciseObj.reps = repsValue + repsUnit; // Ex: Fica "1min" ou "60s"
+        }
+        
         exerciseObj.weight = parseFloat(document.getElementById('exWeight').value) || 0;
     } else {
         exerciseObj.distance = parseFloat(document.getElementById('exDistance').value) || 0;

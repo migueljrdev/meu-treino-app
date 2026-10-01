@@ -124,7 +124,9 @@ window.showDayDetails = function(dateStr) {
         if (ex.type === 'cardio') {
             details = `<span class="text-gray-400">${ex.distance}km | ${ex.time}min | ${ex.pace}</span>`;
         } else {
-            details = `<span class="text-gray-400">${ex.sets} séries x ${ex.reps} reps</span> - <strong class="text-brand">${ex.weight}kg</strong>`;
+            // VERIFICA SE O PESO É 0 PARA ESCREVER "Corporal" e remove a palavra fixa "reps"
+            const pesoExibicao = (ex.weight > 0) ? `${ex.weight}kg` : '<span class="text-[10px] uppercase text-gray-500">Corporal</span>';
+            details = `<span class="text-gray-400">${ex.sets} séries x ${ex.reps}</span> - <strong class="text-brand">${pesoExibicao}</strong>`;
         }
 
         list.innerHTML += `
@@ -223,11 +225,13 @@ window.renderProgress = function() {
 }
 
 // Função para formatar os dados pequenos na tabela (ex: "4x10 \n 20kg")
+// Função para formatar os dados pequenos na tabela de progresso
 function formatCompactData(ex) {
     if (ex.type === 'cardio') {
         return `${ex.distance}km<br><span class="text-xs font-normal text-gray-500">${ex.time}m | ${ex.pace.charAt(0)}</span>`; // Pega só 1ª letra do ritmo (L, M, I)
     } else {
-        const peso = ex.weight > 0 ? `<span class="text-green-500">${ex.weight}kg</span>` : `<span class="text-gray-500">-</span>`;
+        // VERIFICA SE O PESO É 0 PARA ESCREVER "Corporal" na tabela
+        const peso = ex.weight > 0 ? `<span class="text-green-500">${ex.weight}kg</span>` : `<span class="text-[10px] uppercase text-gray-500">Corporal</span>`;
         return `${ex.sets}x${ex.reps}<br><span class="text-xs font-normal">${peso}</span>`;
     }
 }
