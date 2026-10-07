@@ -301,16 +301,16 @@ window.openMediaModal = function(id) {
 
     const carouselContainer = document.querySelector('#mediaModal .carousel-container');
     
-    // Separa os caminhos/links por vírgula
     const images = ex.image ? ex.image.split(',').map(i => i.trim()).filter(i => i.length > 0) : [];
 
     if (images.length > 0) {
         let slidesHtml = '';
         
         images.forEach((imgUrl, index) => {
+            // Força a altura 100% do container
             slidesHtml += `
-                <div class="carousel-slide ${index === 0 ? 'active' : ''} flex items-center justify-center bg-black/50 rounded-lg overflow-hidden max-h-[350px]">
-                    <img src="${imgUrl}" alt="${ex.name}" class="w-full h-full object-contain">
+                <div class="carousel-slide ${index === 0 ? 'active' : ''} flex items-center justify-center bg-black/50 rounded-lg overflow-hidden w-full h-full" style="height: 100%;">
+                    <img src="${imgUrl}" alt="${ex.name}" class="w-full h-full object-contain" style="max-height: 100%; object-fit: contain;">
                 </div>
             `;
         });
@@ -325,7 +325,7 @@ window.openMediaModal = function(id) {
         carouselContainer.innerHTML = slidesHtml;
     } else {
         carouselContainer.innerHTML = `
-            <div class="carousel-slide active flex flex-col items-center justify-center p-8 bg-dark rounded-lg text-center border border-gray-800">
+            <div class="carousel-slide active flex flex-col items-center justify-center p-8 bg-dark rounded-lg text-center border border-gray-800 w-full h-full">
                 <i class="fa-solid fa-image text-4xl text-gray-600 mb-3"></i>
                 <p class="text-gray-400 text-sm">Nenhuma imagem cadastrada para este exercício.</p>
             </div>
