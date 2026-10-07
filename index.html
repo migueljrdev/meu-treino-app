@@ -104,18 +104,22 @@
                     <input type="text" id="exName" class="w-full bg-dark border border-gray-700 rounded-lg px-4 py-2 text-white">
                 </div>
 
-                <!-- Campos de Musculação ATUALIZADOS -->
+                <!-- NOVO CAMPO: GIFS / IMAGENS -->
+                <div>
+                    <label class="block text-sm text-gray-400 mb-1">GIFs / Imagens (separe por vírgula)</label>
+                    <input type="text" id="exImage" placeholder="Ex: src/images/p1.jpg, https://site.com/gif.gif" class="w-full bg-dark border border-gray-700 rounded-lg px-4 py-2 text-white placeholder-gray-600">
+                </div>
+
+                <!-- Campos de Musculação -->
                 <div id="strengthFields" class="grid grid-cols-3 gap-4">
                     <div>
                         <label class="block text-sm text-gray-400 mb-1">Séries</label>
-                        <!-- MIN="0" ADICIONADO AQUI -->
                         <input type="number" id="exSets" placeholder="Ex: 3" min="0" class="w-full bg-dark border border-gray-700 rounded-lg px-4 py-2 text-white placeholder-gray-600">
                     </div>
                     
                     <div>
                         <label class="block text-sm text-gray-400 mb-1" title="Repetições ou Tempo">Reps / Tempo</label>
                         <div class="flex items-center bg-dark border border-gray-700 rounded-lg focus-within:border-brand overflow-hidden">
-                            <!-- MIN="0" ADICIONADO AQUI -->
                             <input type="number" id="exReps" placeholder="15" min="0" class="w-1/2 bg-transparent px-2 py-2 text-white placeholder-gray-600 outline-none">
                             <div class="w-px h-5 bg-gray-600"></div>
                             <select id="exRepsUnit" class="w-1/2 bg-transparent px-1 py-2 text-white text-sm outline-none cursor-pointer">
@@ -128,7 +132,6 @@
                     
                     <div>
                         <label class="block text-sm text-gray-400 mb-1">Peso (kg)</label>
-                        <!-- MIN="0" ADICIONADO AQUI -->
                         <input type="number" step="0.5" id="exWeight" placeholder="Corporal" min="0" class="w-full bg-dark border border-gray-700 rounded-lg px-4 py-2 text-white placeholder-gray-600">
                     </div>
                 </div>
@@ -137,12 +140,10 @@
                 <div id="cardioFields" class="hidden grid-cols-3 gap-4">
                     <div>
                         <label class="block text-sm text-gray-400 mb-1">Dist. (km)</label>
-                        <!-- MIN="0" ADICIONADO AQUI -->
                         <input type="number" step="0.1" id="exDistance" min="0" class="w-full bg-dark border border-gray-700 rounded-lg px-4 py-2 text-white" placeholder="Ex: 5">
                     </div>
                     <div>
                         <label class="block text-sm text-gray-400 mb-1">Tempo (min)</label>
-                        <!-- MIN="0" ADICIONADO AQUI -->
                         <input type="number" id="exTime" min="0" class="w-full bg-dark border border-gray-700 rounded-lg px-4 py-2 text-white" placeholder="Ex: 20">
                     </div>
                     <div>
@@ -163,20 +164,17 @@
         </div>
     </div>
 
-    <!-- Modal de Execução do YouTube / Carrossel -->
+    <!-- Modal de Execução / Carrossel -->
     <div id="mediaModal" class="fixed inset-0 bg-black/90 hidden items-center justify-center z-50 p-4">
         <div class="bg-card w-full max-w-lg rounded-xl p-6 border border-gray-800 relative">
             <button onclick="closeModals()" class="absolute top-4 right-4 text-gray-400 hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
-            <h3 class="text-xl font-bold text-white mb-2" id="mediaTitle">Execução</h3>
-            <div class="carousel-container mb-6 border border-gray-700">
-                <button class="carousel-btn prev" onclick="moveSlide(-1)"><i class="fa-solid fa-chevron-left"></i></button>
-                <div class="carousel-slide active"><img src="https://placehold.co/600x400/121214/8257E5/png?text=Fase+1:+Posicao+Inicial"></div>
-                <div class="carousel-slide"><img src="https://placehold.co/600x400/121214/8257E5/png?text=Fase+2:+Descida"></div>
-                <div class="carousel-slide"><img src="https://placehold.co/600x400/121214/8257E5/png?text=Fase+3:+Subida"></div>
-                <button class="carousel-btn next" onclick="moveSlide(1)"><i class="fa-solid fa-chevron-right"></i></button>
-            </div>
+            <h3 class="text-xl font-bold text-white mb-4" id="mediaTitle">Execução</h3>
+            
+            <!-- O JS gera os slides de imagem dinamicamente aqui dentro -->
+            <div class="carousel-container mb-6 border border-gray-700 rounded-lg min-h-[200px] relative"></div>
+            
             <a href="#" id="youtubeBtn" target="_blank" class="w-full flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white py-3 rounded-lg font-medium">
-                <i class="fa-brands fa-youtube text-xl"></i> Ver Vídeo Completo
+                <i class="fa-brands fa-youtube text-xl"></i> Ver Vídeo no YouTube
             </a>
         </div>
     </div>

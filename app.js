@@ -16,15 +16,14 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
-const auth = getAuth(app); // Inicializa o serviço de autenticação
+const auth = getAuth(app); 
 
 const daysOfWeek = ['Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado', 'Domingo'];
 let currentDay = 'Segunda-feira';
 let workoutData = {};
 
 const docRef = doc(db, "treinos", "meu_treino_principal");
-// NOVA REFERÊNCIA: Banco de Histórico
-const historyRef = doc(db, "treinos", "meu_historico_principal")
+const historyRef = doc(db, "treinos", "meu_historico_principal");
 
 async function loadFromFirebase() {
     try {
@@ -109,7 +108,7 @@ window.renderExercises = function() {
                 <td class="py-4 text-gray-300 text-center">${ex.reps}</td>
                 <td class="py-4 text-brand font-bold text-center">${pesoExibicao}</td>
                 <td class="py-4 text-right space-x-2">
-                    <button onclick="openMediaModal('${ex.name}')" class="text-gray-500 hover:text-brand p-2 bg-gray-800/50 rounded"><i class="fa-solid fa-play"></i></button>
+                    <button onclick="openMediaModal(${ex.id})" class="text-gray-500 hover:text-brand p-2 bg-gray-800/50 rounded" title="Ver execução"><i class="fa-solid fa-play"></i></button>
                     <button onclick="editExercise(${ex.id})" class="text-gray-500 hover:text-white p-2"><i class="fa-solid fa-pen"></i></button>
                     <button onclick="deleteExercise(${ex.id})" class="text-gray-500 hover:text-red-500 p-2"><i class="fa-solid fa-trash"></i></button>
                 </td>
@@ -158,17 +157,13 @@ window.toggleType = function() {
     const type = document.querySelector('input[name="exType"]:checked').value;
     
     if (type === 'cardio') {
-        // Esconde Musculação
         document.getElementById('strengthFields').classList.remove('grid');
         document.getElementById('strengthFields').classList.add('hidden');
-        // Mostra Cardio
         document.getElementById('cardioFields').classList.remove('hidden');
         document.getElementById('cardioFields').classList.add('grid');
     } else {
-        // Esconde Cardio
         document.getElementById('cardioFields').classList.remove('grid');
         document.getElementById('cardioFields').classList.add('hidden');
-        // Mostra Musculação
         document.getElementById('strengthFields').classList.remove('hidden');
         document.getElementById('strengthFields').classList.add('grid');
     }
@@ -177,9 +172,11 @@ window.toggleType = function() {
 window.openAddModal = function() {
     document.getElementById('modalTitle').innerText = 'Adicionar Exercício';
     document.getElementById('editId').value = '';
-    ['exName', 'exSets', 'exReps', 'exWeight', 'exDistance', 'exTime'].forEach(id => document.getElementById(id).value = '');
+    ['exName', 'exImage', 'exSets', 'exReps', 'exWeight', 'exDistance', 'exTime'].forEach(id => {
+        const el = document.getElementById(id);
+        if(el) el.value = '';
+    });
     
-    // Reseta o menu de Reps para o padrão
     document.getElementById('exRepsUnit').value = ''; 
     document.getElementById('exPace').value = 'Leve';
     
@@ -196,6 +193,7 @@ window.editExercise = function(id) {
         document.getElementById('modalTitle').innerText = 'Editar Exercício';
         document.getElementById('editId').value = ex.id;
         document.getElementById('exName').value = ex.name;
+        document.getElementById('exImage').value = ex.image || '';
         
         const type = ex.type || 'strength';
         document.querySelector(`input[value="${type}"]`).checked = true;
@@ -204,7 +202,6 @@ window.editExercise = function(id) {
         if (type === 'strength') {
             document.getElementById('exSets').value = ex.sets;
             
-            // Lógica para separar o número da unidade quando for editar
             let repsStr = String(ex.reps || "");
             if (repsStr.includes('min')) {
                 document.getElementById('exReps').value = repsStr.replace('min', '').trim();
@@ -232,21 +229,19 @@ window.editExercise = function(id) {
 window.saveExercise = function() {
     const id = document.getElementById('editId').value;
     const name = document.getElementById('exName').value;
+    const imageUrl = document.getElementById('exImage').value.trim();
     const type = document.querySelector('input[name="exType"]:checked').value;
 
     if(!name) return alert('Digite o nome do exercício.');
 
-    let exerciseObj = { name, type };
+    let exerciseObj = { name, type, image: imageUrl };
 
     if (type === 'strength') {
-        // Envolvemos o valor com Math.abs() -> Transforma negativos em positivos
         exerciseObj.sets = Math.abs(parseInt(document.getElementById('exSets').value) || 0);
         
-        // Pega no número forçando positivo
         const repsValue = Math.abs(parseInt(document.getElementById('exReps').value) || 0);
         const repsUnit = document.getElementById('exRepsUnit').value;
         
-        // Se o utilizador não digitar nada no campo Reps
         if (!document.getElementById('exReps').value) {
             exerciseObj.reps = "0";
         } else if (repsUnit === "") {
@@ -296,27 +291,71 @@ window.resetData = function() {
 
 // Media / Carrossel e Fechar
 let currentSlide = 0;
-window.openMediaModal = function(exName) {
-    document.getElementById('mediaTitle').innerText = `Execução: ${exName}`;
-    document.getElementById('youtubeBtn').href = `https://www.youtube.com/results?search_query=${encodeURIComponent('Como fazer ' + exName + ' corretamente')}`;
+
+window.openMediaModal = function(id) {
+    const ex = workoutData[currentDay].find(e => e.id === id);
+    if (!ex) return;
+
+    document.getElementById('mediaTitle').innerText = `Execução: ${ex.name}`;
+    document.getElementById('youtubeBtn').href = `https://www.youtube.com/results?search_query=${encodeURIComponent('Como fazer ' + ex.name + ' corretamente')}`;
+
+    const carouselContainer = document.querySelector('#mediaModal .carousel-container');
+    
+    // Separa os caminhos/links por vírgula
+    const images = ex.image ? ex.image.split(',').map(i => i.trim()).filter(i => i.length > 0) : [];
+
+    if (images.length > 0) {
+        let slidesHtml = '';
+        
+        images.forEach((imgUrl, index) => {
+            slidesHtml += `
+                <div class="carousel-slide ${index === 0 ? 'active' : ''} flex items-center justify-center bg-black/50 rounded-lg overflow-hidden max-h-[350px]">
+                    <img src="${imgUrl}" alt="${ex.name}" class="w-full h-full object-contain">
+                </div>
+            `;
+        });
+
+        if (images.length > 1) {
+            slidesHtml += `
+                <button class="carousel-btn prev" onclick="moveSlide(-1)"><i class="fa-solid fa-chevron-left"></i></button>
+                <button class="carousel-btn next" onclick="moveSlide(1)"><i class="fa-solid fa-chevron-right"></i></button>
+            `;
+        }
+
+        carouselContainer.innerHTML = slidesHtml;
+    } else {
+        carouselContainer.innerHTML = `
+            <div class="carousel-slide active flex flex-col items-center justify-center p-8 bg-dark rounded-lg text-center border border-gray-800">
+                <i class="fa-solid fa-image text-4xl text-gray-600 mb-3"></i>
+                <p class="text-gray-400 text-sm">Nenhuma imagem cadastrada para este exercício.</p>
+            </div>
+        `;
+    }
+
     currentSlide = 0;
-    document.querySelectorAll('.carousel-slide').forEach((s, i) => s.classList.toggle('active', i === currentSlide));
     document.getElementById('mediaModal').classList.remove('hidden');
     document.getElementById('mediaModal').classList.add('flex');
 }
+
 window.moveSlide = function(direction) {
-    const slides = document.querySelectorAll('.carousel-slide');
+    const slides = document.querySelectorAll('#mediaModal .carousel-slide');
+    if (slides.length <= 1) return;
+
+    slides[currentSlide].classList.remove('active');
+    
     currentSlide += direction;
     if (currentSlide < 0) currentSlide = slides.length - 1;
     if (currentSlide >= slides.length) currentSlide = 0;
-    slides.forEach((s, i) => s.classList.toggle('active', i === currentSlide));
+
+    slides[currentSlide].classList.add('active');
 }
+
 window.closeModals = function() {
     document.getElementById('formModal').classList.replace('flex', 'hidden');
     document.getElementById('mediaModal').classList.replace('flex', 'hidden');
 }
 
-// --- NOVA FUNÇÃO: Salvar treino do dia no Histórico ---
+// Salvar treino do dia no Histórico (respeitando checkboxes)
 window.finishTodayWorkout = async function() {
     const exercisesToday = workoutData[currentDay];
     
@@ -324,34 +363,26 @@ window.finishTodayWorkout = async function() {
         return alert("Não há exercícios neste dia para concluir!");
     }
 
-    // 1. Descobre a data correta baseada na aba selecionada (na semana atual)
     const d = new Date();
-    
-    // No JS, domingo é 0. Vamos converter para a nossa semana (Segunda=0, Domingo=6)
     const currentJsDay = d.getDay() === 0 ? 6 : d.getDay() - 1; 
-    const targetJsDay = daysOfWeek.indexOf(currentDay); // Dia da aba que você está clicando
+    const targetJsDay = daysOfWeek.indexOf(currentDay);
     
-    // Calcula a diferença de dias entre hoje e o dia da aba
     const diff = targetJsDay - currentJsDay;
     
-    // Aplica a diferença na data de hoje
     const workoutDate = new Date(d);
     workoutDate.setDate(d.getDate() + diff);
 
-    // 2. Formata as datas
     const targetStr = `${workoutDate.getFullYear()}-${String(workoutDate.getMonth()+1).padStart(2, '0')}-${String(workoutDate.getDate()).padStart(2, '0')}`;
     const [y, m, day] = targetStr.split('-');
     const dataFormatada = `${day}/${m}/${y}`;
 
-    // 3. Pede confirmação ao usuário
     if(!confirm(`Deseja registrar este treino para o dia ${dataFormatada} (${currentDay})?`)) {
-        return; // Se você clicar em "Cancelar", ele para por aqui.
+        return;
     }
     
     document.getElementById('statusText').innerHTML = '<i class="fa-solid fa-arrows-rotate fa-spin text-green-500 mr-1"></i> Registrando histórico...';
 
     try {
-        // Mapeia os exercícios lendo o estado de cada checkbox (marcado = feito, desmarcado = pulado)
         const exercisesSnapshot = exercisesToday.map(ex => {
             const checkbox = document.getElementById(`check-${ex.id}`);
             const isCompleted = checkbox ? checkbox.checked : true;
@@ -361,17 +392,14 @@ window.finishTodayWorkout = async function() {
             };
         });
 
-        // Busca o histórico atual
         const snap = await getDoc(historyRef);
         let historyData = snap.exists() ? snap.data() : {};
 
-        // Salva a "fotografia" do treino na data CORRETA da semana
         historyData[targetStr] = {
             dayName: currentDay,
             exercises: exercisesSnapshot 
         };
 
-        // Envia pro Firebase
         await setDoc(historyRef, historyData);
         document.getElementById('statusText').innerHTML = '<i class="fa-solid fa-check text-green-500 mr-1"></i> Treino salvo!';
         
