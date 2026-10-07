@@ -121,17 +121,23 @@ window.showDayDetails = function(dateStr) {
 
     data.exercises.forEach(ex => {
         let details = '';
-        if (ex.type === 'cardio') {
+        let nameStyle = 'text-white'; // Cor normal
+        
+        // Verifica se o exercício foi marcado como pulado
+        if (ex.completed === false) {
+            details = `<span class="text-red-500 font-medium">Não realizado</span>`;
+            nameStyle = 'text-gray-500 line-through'; // Deixa o nome cinza e riscado!
+        } 
+        else if (ex.type === 'cardio') {
             details = `<span class="text-gray-400">${ex.distance}km | ${ex.time}min | ${ex.pace}</span>`;
         } else {
-            // VERIFICA SE O PESO É 0 PARA ESCREVER "Corporal" e remove a palavra fixa "reps"
             const pesoExibicao = (ex.weight > 0) ? `${ex.weight}kg` : '<span class="text-[10px] uppercase text-gray-500">Corporal</span>';
             details = `<span class="text-gray-400">${ex.sets} séries x ${ex.reps}</span> - <strong class="text-brand">${pesoExibicao}</strong>`;
         }
 
         list.innerHTML += `
             <li class="flex justify-between items-center bg-dark p-3 rounded-lg border border-gray-800">
-                <span class="text-white font-medium">${ex.name}</span>
+                <span class="${nameStyle} font-medium">${ex.name}</span>
                 <span class="text-sm text-right">${details}</span>
             </li>
         `;
@@ -225,12 +231,15 @@ window.renderProgress = function() {
 }
 
 // Função para formatar os dados pequenos na tabela (ex: "4x10 \n 20kg")
-// Função para formatar os dados pequenos na tabela de progresso
 function formatCompactData(ex) {
+    // Se não foi realizado, exibe a etiqueta vermelha
+    if (ex.completed === false) {
+        return `<span class="text-xs font-medium text-red-500 uppercase">Não<br>Feito</span>`;
+    }
+    
     if (ex.type === 'cardio') {
-        return `${ex.distance}km<br><span class="text-xs font-normal text-gray-500">${ex.time}m | ${ex.pace.charAt(0)}</span>`; // Pega só 1ª letra do ritmo (L, M, I)
+        return `${ex.distance}km<br><span class="text-xs font-normal text-gray-500">${ex.time}m | ${ex.pace.charAt(0)}</span>`;
     } else {
-        // VERIFICA SE O PESO É 0 PARA ESCREVER "Corporal" na tabela
         const peso = ex.weight > 0 ? `<span class="text-green-500">${ex.weight}kg</span>` : `<span class="text-[10px] uppercase text-gray-500">Corporal</span>`;
         return `${ex.sets}x${ex.reps}<br><span class="text-xs font-normal">${peso}</span>`;
     }

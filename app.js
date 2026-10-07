@@ -88,7 +88,6 @@ window.renderExercises = function() {
 
     emptyState.classList.add('hidden');
     
-    // Separando Musculação de Cardio
     const strengthEx = exercises.filter(e => !e.type || e.type === 'strength');
     const cardioEx = exercises.filter(e => e.type === 'cardio');
 
@@ -99,11 +98,13 @@ window.renderExercises = function() {
             const tr = document.createElement('tr');
             tr.className = 'border-b border-gray-800 hover:bg-gray-800/30';
             
-            // VERIFICA SE O PESO É 0 PARA ESCREVER "Corporal"
             const pesoExibicao = (ex.weight > 0) ? `${ex.weight}kg` : '<span class="text-[10px] uppercase text-gray-500">Corporal</span>';
 
             tr.innerHTML = `
-                <td class="py-4 text-white font-medium">${ex.name}</td>
+                <td class="py-4 text-white font-medium flex items-center gap-3">
+                    <input type="checkbox" id="check-${ex.id}" checked class="w-5 h-5 accent-brand cursor-pointer shrink-0" title="Marcar como realizado">
+                    ${ex.name}
+                </td>
                 <td class="py-4 text-gray-300 text-center">${ex.sets}</td>
                 <td class="py-4 text-gray-300 text-center">${ex.reps}</td>
                 <td class="py-4 text-brand font-bold text-center">${pesoExibicao}</td>
@@ -119,14 +120,15 @@ window.renderExercises = function() {
         strengthSection.classList.add('hidden');
     }
 
-    // Renderiza Cardio (Cards exclusivos)
+    // Renderiza Cardio
     if(cardioEx.length > 0) {
         cardioSection.classList.remove('hidden');
         cardioEx.forEach(ex => {
             const div = document.createElement('div');
             div.className = 'flex justify-between items-center bg-dark border border-gray-800 p-4 rounded-lg';
             div.innerHTML = `
-                <div class="flex items-center gap-4">
+                <div class="flex items-center gap-4 w-full">
+                    <input type="checkbox" id="check-${ex.id}" checked class="w-6 h-6 accent-red-500 cursor-pointer shrink-0" title="Marcar como realizado">
                     <div class="bg-red-500/10 p-3 rounded-full text-red-500 hidden sm:block">
                         <i class="fa-solid fa-person-running text-xl"></i>
                     </div>
@@ -151,7 +153,6 @@ window.renderExercises = function() {
     }
 }
 
-// Troca os campos visíveis no Modal dependendo do que foi selecionado
 // Troca os campos visíveis no Modal dependendo do que foi selecionado
 window.toggleType = function() {
     const type = document.querySelector('input[name="exType"]:checked').value;
@@ -238,24 +239,26 @@ window.saveExercise = function() {
     let exerciseObj = { name, type };
 
     if (type === 'strength') {
-        exerciseObj.sets = parseInt(document.getElementById('exSets').value) || 0;
+        // Envolvemos o valor com Math.abs() -> Transforma negativos em positivos
+        exerciseObj.sets = Math.abs(parseInt(document.getElementById('exSets').value) || 0);
         
-        // Pega no número e junta à unidade escolhida (min, seg ou nada)
-        const repsValue = document.getElementById('exReps').value;
+        // Pega no número forçando positivo
+        const repsValue = Math.abs(parseInt(document.getElementById('exReps').value) || 0);
         const repsUnit = document.getElementById('exRepsUnit').value;
         
-        if (!repsValue) {
+        // Se o utilizador não digitar nada no campo Reps
+        if (!document.getElementById('exReps').value) {
             exerciseObj.reps = "0";
         } else if (repsUnit === "") {
-            exerciseObj.reps = repsValue; // Ex: Fica só "15"
+            exerciseObj.reps = repsValue.toString(); 
         } else {
-            exerciseObj.reps = repsValue + repsUnit; // Ex: Fica "1min" ou "60s"
+            exerciseObj.reps = repsValue + repsUnit; 
         }
         
-        exerciseObj.weight = parseFloat(document.getElementById('exWeight').value) || 0;
+        exerciseObj.weight = Math.abs(parseFloat(document.getElementById('exWeight').value) || 0);
     } else {
-        exerciseObj.distance = parseFloat(document.getElementById('exDistance').value) || 0;
-        exerciseObj.time = parseInt(document.getElementById('exTime').value) || 0;
+        exerciseObj.distance = Math.abs(parseFloat(document.getElementById('exDistance').value) || 0);
+        exerciseObj.time = Math.abs(parseInt(document.getElementById('exTime').value) || 0);
         exerciseObj.pace = document.getElementById('exPace').value;
     }
 
@@ -314,7 +317,6 @@ window.closeModals = function() {
 }
 
 // --- NOVA FUNÇÃO: Salvar treino do dia no Histórico ---
-// --- NOVA FUNÇÃO: Salvar treino do dia no Histórico ---
 window.finishTodayWorkout = async function() {
     const exercisesToday = workoutData[currentDay];
     
@@ -349,6 +351,16 @@ window.finishTodayWorkout = async function() {
     document.getElementById('statusText').innerHTML = '<i class="fa-solid fa-arrows-rotate fa-spin text-green-500 mr-1"></i> Registrando histórico...';
 
     try {
+        // Mapeia os exercícios lendo o estado de cada checkbox (marcado = feito, desmarcado = pulado)
+        const exercisesSnapshot = exercisesToday.map(ex => {
+            const checkbox = document.getElementById(`check-${ex.id}`);
+            const isCompleted = checkbox ? checkbox.checked : true;
+            return {
+                ...ex,
+                completed: isCompleted
+            };
+        });
+
         // Busca o histórico atual
         const snap = await getDoc(historyRef);
         let historyData = snap.exists() ? snap.data() : {};
@@ -356,7 +368,7 @@ window.finishTodayWorkout = async function() {
         // Salva a "fotografia" do treino na data CORRETA da semana
         historyData[targetStr] = {
             dayName: currentDay,
-            exercises: exercisesToday 
+            exercises: exercisesSnapshot 
         };
 
         // Envia pro Firebase
