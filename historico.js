@@ -2,7 +2,9 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.5.0/firebas
 import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.5.0/firebase-firestore.js";
 import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.5.0/firebase-auth.js";
 
-// COLAR SUAS CHAVES AQUI
+// ==========================================
+// COLOQUE SUAS CHAVES DO FIREBASE AQUI
+// ==========================================
 const firebaseConfig = {
   apiKey: "AIzaSyCVwshlGT_fpe-EdiYZDu0pPNrF9SexsFY",
   authDomain: "meu-treino-eabf2.firebaseapp.com",
@@ -16,7 +18,7 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app); 
 
-// Duas referências agora: Histórico e o Treino Atual
+// Referências: Histórico e Treino Atual
 const historyRef = doc(db, "treinos", "meu_historico_principal");
 const workoutRef = doc(db, "treinos", "meu_treino_principal");
 
@@ -36,7 +38,6 @@ window.switchTab = function(tab) {
 // --- CARREGAR DADOS ---
 async function loadHistory() {
     try {
-        // Baixa o histórico e o treino atual ao mesmo tempo
         const [snapHist, snapWork] = await Promise.all([
             getDoc(historyRef),
             getDoc(workoutRef)
@@ -121,14 +122,12 @@ window.showDayDetails = function(dateStr) {
 
     data.exercises.forEach(ex => {
         let details = '';
-        let nameStyle = 'text-white'; // Cor normal
+        let nameStyle = 'text-white';
         
-        // Verifica se o exercício foi marcado como pulado
         if (ex.completed === false) {
             details = `<span class="text-red-500 font-medium">Não realizado</span>`;
-            nameStyle = 'text-gray-500 line-through'; // Deixa o nome cinza e riscado!
-        } 
-        else if (ex.type === 'cardio') {
+            nameStyle = 'text-gray-500 line-through';
+        } else if (ex.type === 'cardio') {
             details = `<span class="text-gray-400">${ex.distance}km | ${ex.time}min | ${ex.pace}</span>`;
         } else {
             const pesoExibicao = (ex.weight > 0) ? `${ex.weight}kg` : '<span class="text-[10px] uppercase text-gray-500">Corporal</span>';
@@ -146,7 +145,7 @@ window.showDayDetails = function(dateStr) {
     detailsDiv.classList.remove('hidden');
 }
 
-// --- COMPARAR EVOLUÇÃO (PROGRESSO NAS ÚLTIMAS 4 SEMANAS) ---
+// --- COMPARAR EVOLUÇÃO (SEPARANDO MUSCULAÇÃO E CARDIO CORRETAMENTE) ---
 window.renderProgress = function() {
     const dayName = document.getElementById('daySelect').value;
     const thead = document.getElementById('progressTableHeader');
@@ -157,7 +156,6 @@ window.renderProgress = function() {
 
     if(!dayName) return;
 
-    // 1. Achar as datas em que esse dia da semana foi feito no histórico
     let historyDates = [];
     Object.keys(rawHistoryData).forEach(dateStr => {
         if (rawHistoryData[dateStr].dayName === dayName) {
@@ -165,14 +163,10 @@ window.renderProgress = function() {
         }
     });
 
-    // 2. Ordenar do mais novo pro mais velho e pegar só os 4 últimos
     historyDates.sort((a, b) => b.localeCompare(a));
     let last4Dates = historyDates.slice(0, 4);
-    
-    // 3. Voltar pra ordem cronológica (antigo -> novo) para ler da esquerda pra direita
     last4Dates.sort((a, b) => a.localeCompare(b));
 
-    // 4. Montar o Cabeçalho (Exercício | Data 1 | Data 2... | Atual)
     let headerHtml = `<th class="pb-3 font-medium whitespace-nowrap">Exercício</th>`;
     last4Dates.forEach(dateStr => {
         const [y, m, d] = dateStr.split('-');
@@ -181,33 +175,61 @@ window.renderProgress = function() {
     headerHtml += `<th class="pb-3 font-medium text-center text-brand">Atual</th>`;
     thead.innerHTML = headerHtml;
 
-    // 5. Pegar os exercícios ATUAIS desse dia
     const currentExercises = currentWorkoutData[dayName] || [];
 
-    // Lógica para pegar exercícios do atual E do passado (pra caso você tenha removido algum)
     const uniqueExNames = new Set(currentExercises.map(e => e.name));
     last4Dates.forEach(dateStr => {
         rawHistoryData[dateStr].exercises.forEach(e => uniqueExNames.add(e.name));
     });
 
-    // Põe os atuais primeiro, depois os antigos
-    const finalExList = [];
-    currentExercises.forEach(ex => finalExList.push(ex.name));
-    Array.from(uniqueExNames).forEach(name => {
-        if (!finalExList.includes(name)) finalExList.push(name);
+    // Função auxiliar para identificar o tipo do exercício de forma segura
+    function getExType(name) {
+        let curr = currentExercises.find(e => e.name === name);
+        if (curr) return curr.type || 'strength';
+        for (let dateStr of last4Dates) {
+            let hist = rawHistoryData[dateStr].exercises.find(e => e.name === name);
+            if (hist) return hist.type || 'strength';
+        }
+        return 'strength';
+    }
+
+    const strengthNames = [];
+    const cardioNames = [];
+
+    // Separa ordenadamente com base no treino atual
+    currentExercises.forEach(ex => {
+        const type = ex.type || 'strength';
+        if (type === 'cardio') {
+            if (!cardioNames.includes(ex.name)) cardioNames.push(ex.name);
+        } else {
+            if (!strengthNames.includes(ex.name)) strengthNames.push(ex.name);
+        }
     });
+
+    // Inclui eventuais exercícios antigos que constam no histórico mas não na rotina atual
+    uniqueExNames.forEach(name => {
+        if (!strengthNames.includes(name) && !cardioNames.includes(name)) {
+            const type = getExType(name);
+            if (type === 'cardio') {
+                cardioNames.push(name);
+            } else {
+                strengthNames.push(name);
+            }
+        }
+    });
+
+    // Junta mantendo a Musculação sempre no topo e o Cardio na base
+    const finalExList = [...strengthNames, ...cardioNames];
 
     if (finalExList.length === 0) {
         tbody.innerHTML = `<tr><td colspan="6" class="py-4 text-center text-gray-500">Nenhum exercício encontrado para este dia.</td></tr>`;
         return;
     }
 
-    // 6. Montar as Linhas da Tabela
     finalExList.forEach(exName => {
         let rowHtml = `<tr class="border-b border-gray-800 hover:bg-gray-800/30">
             <td class="py-4 text-white font-medium text-sm whitespace-nowrap pr-4">${exName}</td>`;
 
-        // Busca o exercício nas 4 últimas semanas
         last4Dates.forEach(dateStr => {
             const histEx = rawHistoryData[dateStr].exercises.find(e => e.name === exName);
             if (histEx) {
@@ -217,7 +239,6 @@ window.renderProgress = function() {
             }
         });
 
-        // Busca o exercício no painel "Atual"
         const currEx = currentExercises.find(e => e.name === exName);
         if (currEx) {
             rowHtml += `<td class="py-4 text-brand font-bold text-center text-sm px-2">${formatCompactData(currEx)}</td>`;
@@ -230,9 +251,7 @@ window.renderProgress = function() {
     });
 }
 
-// Função para formatar os dados pequenos na tabela (ex: "4x10 \n 20kg")
 function formatCompactData(ex) {
-    // Se não foi realizado, exibe a etiqueta vermelha
     if (ex.completed === false) {
         return `<span class="text-xs font-medium text-red-500 uppercase">Não<br>Feito</span>`;
     }
