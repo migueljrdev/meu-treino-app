@@ -93,11 +93,14 @@ window.renderExercises = function() {
     // Renderiza Musculação
     if(strengthEx.length > 0) {
         strengthSection.classList.remove('hidden');
-        strengthEx.forEach(ex => {
+        strengthEx.forEach((ex, index) => {
             const tr = document.createElement('tr');
             tr.className = 'border-b border-gray-800 hover:bg-gray-800/30';
             
             const pesoExibicao = (ex.weight > 0) ? `${ex.weight}kg` : '<span class="text-[10px] uppercase text-gray-500">Corporal</span>';
+            
+            const isFirst = index === 0;
+            const isLast = index === strengthEx.length - 1;
 
             tr.innerHTML = `
                 <td class="py-4 text-white font-medium flex items-center gap-3">
@@ -107,10 +110,12 @@ window.renderExercises = function() {
                 <td class="py-4 text-gray-300 text-center">${ex.sets}</td>
                 <td class="py-4 text-gray-300 text-center">${ex.reps}</td>
                 <td class="py-4 text-brand font-bold text-center">${pesoExibicao}</td>
-                <td class="py-4 text-right space-x-2">
+                <td class="py-4 text-right space-x-1 whitespace-nowrap">
+                    <button onclick="moveExercise(${ex.id}, -1)" ${isFirst ? 'disabled' : ''} class="text-gray-500 ${isFirst ? 'opacity-20 cursor-not-allowed' : 'hover:text-white'} p-2" title="Subir"><i class="fa-solid fa-arrow-up"></i></button>
+                    <button onclick="moveExercise(${ex.id}, 1)" ${isLast ? 'disabled' : ''} class="text-gray-500 ${isLast ? 'opacity-20 cursor-not-allowed' : 'hover:text-white'} p-2" title="Descer"><i class="fa-solid fa-arrow-down"></i></button>
                     <button onclick="openMediaModal(${ex.id})" class="text-gray-500 hover:text-brand p-2 bg-gray-800/50 rounded" title="Ver execução"><i class="fa-solid fa-play"></i></button>
-                    <button onclick="editExercise(${ex.id})" class="text-gray-500 hover:text-white p-2"><i class="fa-solid fa-pen"></i></button>
-                    <button onclick="deleteExercise(${ex.id})" class="text-gray-500 hover:text-red-500 p-2"><i class="fa-solid fa-trash"></i></button>
+                    <button onclick="editExercise(${ex.id})" class="text-gray-500 hover:text-white p-2" title="Editar"><i class="fa-solid fa-pen"></i></button>
+                    <button onclick="deleteExercise(${ex.id})" class="text-gray-500 hover:text-red-500 p-2" title="Excluir"><i class="fa-solid fa-trash"></i></button>
                 </td>
             `;
             list.appendChild(tr);
@@ -122,9 +127,13 @@ window.renderExercises = function() {
     // Renderiza Cardio
     if(cardioEx.length > 0) {
         cardioSection.classList.remove('hidden');
-        cardioEx.forEach(ex => {
+        cardioEx.forEach((ex, index) => {
             const div = document.createElement('div');
             div.className = 'flex justify-between items-center bg-dark border border-gray-800 p-4 rounded-lg';
+            
+            const isFirst = index === 0;
+            const isLast = index === cardioEx.length - 1;
+
             div.innerHTML = `
                 <div class="flex items-center gap-4 w-full">
                     <input type="checkbox" id="check-${ex.id}" checked class="w-6 h-6 accent-red-500 cursor-pointer shrink-0" title="Marcar como realizado">
@@ -140,9 +149,11 @@ window.renderExercises = function() {
                         </p>
                     </div>
                 </div>
-                <div class="text-right flex-shrink-0 flex gap-2">
-                    <button onclick="editExercise(${ex.id})" class="text-gray-500 hover:text-white p-2"><i class="fa-solid fa-pen"></i></button>
-                    <button onclick="deleteExercise(${ex.id})" class="text-gray-500 hover:text-red-500 p-2"><i class="fa-solid fa-trash"></i></button>
+                <div class="text-right flex-shrink-0 flex gap-1 items-center">
+                    <button onclick="moveExercise(${ex.id}, -1)" ${isFirst ? 'disabled' : ''} class="text-gray-500 ${isFirst ? 'opacity-20 cursor-not-allowed' : 'hover:text-white'} p-2" title="Subir"><i class="fa-solid fa-arrow-up"></i></button>
+                    <button onclick="moveExercise(${ex.id}, 1)" ${isLast ? 'disabled' : ''} class="text-gray-500 ${isLast ? 'opacity-20 cursor-not-allowed' : 'hover:text-white'} p-2" title="Descer"><i class="fa-solid fa-arrow-down"></i></button>
+                    <button onclick="editExercise(${ex.id})" class="text-gray-500 hover:text-white p-2" title="Editar"><i class="fa-solid fa-pen"></i></button>
+                    <button onclick="deleteExercise(${ex.id})" class="text-gray-500 hover:text-red-500 p-2" title="Excluir"><i class="fa-solid fa-trash"></i></button>
                 </div>
             `;
             cardioList.appendChild(div);
@@ -150,6 +161,32 @@ window.renderExercises = function() {
     } else {
         cardioSection.classList.add('hidden');
     }
+}
+
+// NOVA FUNÇÃO: Subir ou Descer exercício na lista
+window.moveExercise = function(id, direction) {
+    const exercises = workoutData[currentDay];
+    const ex = exercises.find(e => e.id === id);
+    if (!ex) return;
+
+    const type = ex.type || 'strength';
+    const sameTypeExs = exercises.filter(e => (e.type || 'strength') === type);
+    const subIndex = sameTypeExs.findIndex(e => e.id === id);
+    
+    const targetSubIndex = subIndex + direction;
+    if (targetSubIndex < 0 || targetSubIndex >= sameTypeExs.length) return;
+
+    const targetEx = sameTypeExs[targetSubIndex];
+    
+    const mainIndex1 = exercises.findIndex(e => e.id === id);
+    const mainIndex2 = exercises.findIndex(e => e.id === targetEx.id);
+
+    // Troca os elementos de posição na lista principal
+    exercises[mainIndex1] = targetEx;
+    exercises[mainIndex2] = ex;
+
+    saveToFirebase();
+    window.renderExercises();
 }
 
 // Troca os campos visíveis no Modal dependendo do que foi selecionado
@@ -307,7 +344,6 @@ window.openMediaModal = function(id) {
         let slidesHtml = '';
         
         images.forEach((imgUrl, index) => {
-            // Força a altura 100% do container
             slidesHtml += `
                 <div class="carousel-slide ${index === 0 ? 'active' : ''} flex items-center justify-center bg-black/50 rounded-lg overflow-hidden w-full h-full" style="height: 100%;">
                     <img src="${imgUrl}" alt="${ex.name}" class="w-full h-full object-contain" style="max-height: 100%; object-fit: contain;">
