@@ -42,18 +42,30 @@
                 <h2 class="text-xl font-semibold text-white" id="currentDayTitle">Carregando...</h2>
                 <div class="flex gap-2 w-full sm:w-auto flex-wrap sm:flex-nowrap">
                     <!-- BOTÃO DE CONCLUIR TREINO FIXO -->
-                    <button onclick="finishTodayWorkout()" class="flex-1 sm:flex-none bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors">
+                    <button id="btnFinishFixed" onclick="finishTodayWorkout()" class="flex-1 sm:flex-none bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors">
                         <i class="fa-solid fa-check mr-1"></i> Concluir Fixo
                     </button>
 
                     <!-- BOTÃO: TREINO EXCEÇÃO / EXTRA -->
-                    <button onclick="openExceptionModal()" class="flex-1 sm:flex-none bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors" title="Registrar um treino diferente ou compensatório hoje">
+                    <button id="btnException" onclick="openExceptionModal()" class="flex-1 sm:flex-none bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors" title="Registrar um treino diferente ou compensatório hoje">
                         <i class="fa-solid fa-shuffle mr-1"></i> Treino Exceção
                     </button>
 
                     <button onclick="openAddModal()" class="flex-1 sm:flex-none bg-brand hover:bg-brandHover text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors">
                         <i class="fa-solid fa-plus mr-1"></i> Adicionar
                     </button>
+                </div>
+            </div>
+
+            <!-- BANNER DE MODO EXCEÇÃO (FIXO NO HTML PARA O TAILWIND COMPILAR) -->
+            <div id="exceptionBannerWrapper" class="hidden bg-purple-900/40 border border-purple-700/60 p-4 rounded-xl mb-6 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
+                <div class="flex items-start sm:items-center gap-3 text-purple-200 text-sm">
+                    <i class="fa-solid fa-shuffle text-purple-400 text-lg mt-0.5 sm:mt-0 shrink-0"></i>
+                    <span class="leading-relaxed"><strong>Modo Exceção Ativo:</strong> Editando treino adaptado. Isso não afeta sua rotina fixa.</span>
+                </div>
+                <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 shrink-0 w-full sm:w-auto">
+                    <button onclick="cancelExceptionMode()" class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg text-xs font-medium transition-colors text-center">Cancelar</button>
+                    <button onclick="saveExceptionToHistory()" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-xs font-medium transition-colors text-center"><i class="fa-solid fa-cloud-arrow-up mr-1"></i> Salvar no Histórico</button>
                 </div>
             </div>
 
@@ -214,7 +226,6 @@
 
             <div class="flex justify-end gap-3 mt-6 border-t border-gray-800 pt-4">
                 <button onclick="closeModals()" class="px-4 py-2 text-gray-400 hover:text-white transition-colors">Cancelar</button>
-                <!-- ATUALIZADO PARA startExceptionMode -->
                 <button onclick="startExceptionMode()" class="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg font-medium transition-colors">
                     <i class="fa-solid fa-pen-to-square mr-1"></i> Carregar e Editar
                 </button>

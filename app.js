@@ -22,7 +22,6 @@ const daysOfWeek = ['Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-fei
 let currentDay = 'Segunda-feira';
 let workoutData = {};
 
-// Variáveis de controle do Modo Exceção
 let exceptionMode = false;
 let exceptionSourceDay = '';
 let exceptionExercises = [];
@@ -60,6 +59,7 @@ async function saveToFirebase() {
 
 window.renderDays = function() {
     const container = document.getElementById('daysContainer');
+    if (!container) return;
     container.innerHTML = '';
     daysOfWeek.forEach(day => {
         const btn = document.createElement('button');
@@ -80,35 +80,28 @@ window.renderDays = function() {
 
 window.renderExercises = function() {
     const titleContainer = document.getElementById('currentDayTitle');
-    
-    // Se estiver em modo exceção, exibe um banner de aviso no topo da tabela
-    let bannerHtml = document.getElementById('exceptionBanner');
-    if (!bannerHtml) {
-        bannerHtml = document.createElement('div');
-        bannerHtml.id = 'exceptionBanner';
-        document.querySelector('.bg-card').prepend(bannerHtml);
-    }
+    if (!titleContainer) return;
+
+    const bannerWrapper = document.getElementById('exceptionBannerWrapper');
+    const btnFinishFixed = document.getElementById('btnFinishFixed');
+    const btnException = document.getElementById('btnException');
 
     if (exceptionMode) {
+        // Esconde os botões fixos e mostra o banner estático
+        if (btnFinishFixed) btnFinishFixed.classList.add('hidden');
+        if (btnException) btnException.classList.add('hidden');
+        if (bannerWrapper) bannerWrapper.classList.remove('hidden');
+
         titleContainer.innerHTML = `${currentDay} <span class="text-xs bg-purple-900 text-purple-200 px-2 py-0.5 rounded ml-2">Exceção (Copiado de ${exceptionSourceDay})</span>`;
-        bannerHtml.innerHTML = `
-            <div class="bg-purple-900/40 border border-purple-700 p-4 rounded-xl mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                <div class="text-purple-300 text-sm flex items-center gap-2">
-                    <i class="fa-solid fa-shuffle text-purple-400 text-lg"></i>
-                    <span><strong>Modo Exceção Ativo:</strong> Você pode editar, excluir ou remover itens abaixo. Isso não afeta sua rotina fixa.</span>
-                </div>
-                <div class="flex gap-2 w-full sm:w-auto">
-                    <button onclick="cancelExceptionMode()" class="flex-1 sm:flex-none bg-gray-700 hover:bg-gray-650 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition-colors">Cancelar</button>
-                    <button onclick="saveExceptionToHistory()" class="flex-1 sm:flex-none bg-purple-600 hover:bg-purple-700 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"><i class="fa-solid fa-cloud-arrow-up mr-1"></i> Salvar no Histórico</button>
-                </div>
-            </div>
-        `;
     } else {
+        // Mostra os botões fixos e esconde o banner
+        if (btnFinishFixed) btnFinishFixed.classList.remove('hidden');
+        if (btnException) btnException.classList.remove('hidden');
+        if (bannerWrapper) bannerWrapper.classList.add('hidden');
+
         titleContainer.innerText = currentDay;
-        bannerHtml.innerHTML = '';
     }
     
-    // Define se lê da exceção temporária ou da base fixa
     const exercises = exceptionMode ? exceptionExercises : (workoutData[currentDay] || []);
     
     const emptyState = document.getElementById('emptyState');
@@ -117,24 +110,26 @@ window.renderExercises = function() {
     const list = document.getElementById('exerciseList');
     const cardioList = document.getElementById('cardioList');
     
+    if (!list || !cardioList) return;
+
     list.innerHTML = '';
     cardioList.innerHTML = '';
     
     if (exercises.length === 0) {
-        emptyState.classList.remove('hidden');
-        strengthSection.classList.add('hidden');
-        cardioSection.classList.add('hidden');
+        if(emptyState) emptyState.classList.remove('hidden');
+        if(strengthSection) strengthSection.classList.add('hidden');
+        if(cardioSection) cardioSection.classList.add('hidden');
         return;
     } 
 
-    emptyState.classList.add('hidden');
+    if(emptyState) emptyState.classList.add('hidden');
     
     const strengthEx = exercises.filter(e => !e.type || e.type === 'strength');
     const cardioEx = exercises.filter(e => e.type === 'cardio');
 
     // Renderiza Musculação
     if(strengthEx.length > 0) {
-        strengthSection.classList.remove('hidden');
+        if(strengthSection) strengthSection.classList.remove('hidden');
         strengthEx.forEach((ex, index) => {
             const tr = document.createElement('tr');
             tr.className = 'border-b border-gray-800 hover:bg-gray-800/30';
@@ -163,12 +158,12 @@ window.renderExercises = function() {
             list.appendChild(tr);
         });
     } else {
-        strengthSection.classList.add('hidden');
+        if(strengthSection) strengthSection.classList.add('hidden');
     }
 
     // Renderiza Cardio
     if(cardioEx.length > 0) {
-        cardioSection.classList.remove('hidden');
+        if(cardioSection) cardioSection.classList.remove('hidden');
         cardioEx.forEach((ex, index) => {
             const div = document.createElement('div');
             div.className = 'flex justify-between items-center bg-dark border border-gray-800 p-4 rounded-lg';
@@ -201,7 +196,7 @@ window.renderExercises = function() {
             cardioList.appendChild(div);
         });
     } else {
-        cardioSection.classList.add('hidden');
+        if(cardioSection) cardioSection.classList.add('hidden');
     }
 }
 
@@ -443,9 +438,12 @@ window.moveSlide = function(direction) {
 }
 
 window.closeModals = function() {
-    document.getElementById('formModal').classList.replace('flex', 'hidden');
-    document.getElementById('mediaModal').classList.replace('flex', 'hidden');
-    document.getElementById('exceptionModal').classList.replace('flex', 'hidden');
+    const formModal = document.getElementById('formModal');
+    const mediaModal = document.getElementById('mediaModal');
+    const exceptionModal = document.getElementById('exceptionModal');
+    if (formModal) formModal.classList.replace('flex', 'hidden');
+    if (mediaModal) mediaModal.classList.replace('flex', 'hidden');
+    if (exceptionModal) exceptionModal.classList.replace('flex', 'hidden');
 }
 
 // --- CONTROLE DE MODO EXCEÇÃO ---
@@ -465,12 +463,10 @@ window.startExceptionMode = function() {
 
     exceptionMode = true;
     exceptionSourceDay = sourceDay;
-    // Cria uma cópia profunda (deep copy) para poder editar sem alterar o original
     exceptionExercises = JSON.parse(JSON.stringify(sourceExercises));
 
     closeModals();
     renderExercises();
-    alert(`Modo Exceção ativado! Você pode excluir o cardio, ajustar pesos e organizar os exercícios antes de salvar.`);
 }
 
 window.cancelExceptionMode = function() {
@@ -524,11 +520,10 @@ window.saveExceptionToHistory = async function() {
         };
 
         await setDoc(historyRef, historyData);
-        document.getElementById('statusText').innerHTML = '<i class="fa-solid fa-check text-green-500 mr-1"></i> Exceção salva!';
+        document.getElementById('statusText').innerHTML = '<i class="fa-solid fa-cloud text-green-500 mr-1"></i> Salvo na nuvem';
         
         alert(`Parabéns! Treino de exceção gravado com sucesso no dia ${dataFormatada}!`);
         
-        // Sai do modo exceção e retorna ao normal
         exceptionMode = false;
         exceptionExercises = [];
         exceptionSourceDay = '';
@@ -585,7 +580,7 @@ window.finishTodayWorkout = async function() {
         };
 
         await setDoc(historyRef, historyData);
-        document.getElementById('statusText').innerHTML = '<i class="fa-solid fa-check text-green-500 mr-1"></i> Treino salvo!';
+        document.getElementById('statusText').innerHTML = '<i class="fa-solid fa-cloud text-green-500 mr-1"></i> Salvo na nuvem';
         
         alert(`Parabéns! O treino de ${currentDay} foi registrado no dia ${dataFormatada}!`);
     } catch (error) {
