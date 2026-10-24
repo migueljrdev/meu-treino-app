@@ -40,12 +40,18 @@
 
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
                 <h2 class="text-xl font-semibold text-white" id="currentDayTitle">Carregando...</h2>
-                <div class="flex gap-2 w-full sm:w-auto">
-                    <!-- BOTÃO DE CONCLUIR TREINO -->
-                    <button onclick="finishTodayWorkout()" class="flex-1 sm:flex-none bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
-                        <i class="fa-solid fa-check mr-1"></i> Concluir Treino
+                <div class="flex gap-2 w-full sm:w-auto flex-wrap sm:flex-nowrap">
+                    <!-- BOTÃO DE CONCLUIR TREINO FIXO -->
+                    <button onclick="finishTodayWorkout()" class="flex-1 sm:flex-none bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors">
+                        <i class="fa-solid fa-check mr-1"></i> Concluir Fixo
                     </button>
-                    <button onclick="openAddModal()" class="flex-1 sm:flex-none bg-brand hover:bg-brandHover text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+
+                    <!-- BOTÃO: TREINO EXCEÇÃO / EXTRA -->
+                    <button onclick="openExceptionModal()" class="flex-1 sm:flex-none bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors" title="Registrar um treino diferente ou compensatório hoje">
+                        <i class="fa-solid fa-shuffle mr-1"></i> Treino Exceção
+                    </button>
+
+                    <button onclick="openAddModal()" class="flex-1 sm:flex-none bg-brand hover:bg-brandHover text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors">
                         <i class="fa-solid fa-plus mr-1"></i> Adicionar
                     </button>
                 </div>
@@ -104,7 +110,7 @@
                     <input type="text" id="exName" class="w-full bg-dark border border-gray-700 rounded-lg px-4 py-2 text-white">
                 </div>
 
-                <!-- NOVO CAMPO: GIFS / IMAGENS -->
+                <!-- CAMPO: GIFS / IMAGENS -->
                 <div>
                     <label class="block text-sm text-gray-400 mb-1">GIFs / Imagens (separe por vírgula)</label>
                     <input type="text" id="exImage" placeholder="Ex: src/images/p1.jpg, https://site.com/gif.gif" class="w-full bg-dark border border-gray-700 rounded-lg px-4 py-2 text-white placeholder-gray-600">
@@ -166,17 +172,53 @@
 
     <!-- Modal de Execução / Carrossel -->
     <div id="mediaModal" class="fixed inset-0 bg-black/90 hidden items-center justify-center z-50 p-4">
-        <!-- max-w-3xl para dar espaço lateral -->
         <div class="bg-card w-full max-w-xl rounded-xl p-6 border border-gray-800 relative">
             <button onclick="closeModals()" class="absolute top-4 right-4 text-gray-400 hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
             <h3 class="text-xl font-bold text-white mb-4" id="mediaTitle">Execução</h3>
             
-            <!-- ALTURA DEFINIDA DIRETAMENTE (Altere 480px se quiser maior ou menor) -->
             <div class="carousel-container mb-6 border border-gray-700 rounded-lg relative overflow-hidden" style="height: 400px;"></div>
             
             <a href="#" id="youtubeBtn" target="_blank" class="w-full flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white py-3 rounded-lg font-medium">
                 <i class="fa-brands fa-youtube text-xl"></i> Ver Vídeo no YouTube
             </a>
+        </div>
+    </div>
+
+    <!-- MODAL: TREINO EXCEÇÃO / COMPENSATÓRIO -->
+    <div id="exceptionModal" class="fixed inset-0 bg-black/80 hidden items-center justify-center z-50 p-4">
+        <div class="bg-card w-full max-w-md rounded-xl p-6 border border-gray-800 relative">
+            <button onclick="closeModals()" class="absolute top-4 right-4 text-gray-400 hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
+            
+            <h3 class="text-xl font-bold text-white mb-2"><i class="fa-solid fa-shuffle text-purple-500 mr-2"></i>Registrar Treino Exceção</h3>
+            <p class="text-gray-400 text-sm mb-6">Copie a ficha de outro dia para carregar na tela, editar o que precisar e salvar no histórico.</p>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm text-gray-300 mb-1 font-medium">Copiar treino de qual dia?</label>
+                    <select id="copyFromDaySelect" class="w-full bg-dark border border-gray-700 rounded-lg px-4 py-2.5 text-white outline-none focus:border-purple-500">
+                        <option value="Segunda-feira">Segunda-feira</option>
+                        <option value="Terça-feira">Terça-feira</option>
+                        <option value="Quarta-feira">Quarta-feira</option>
+                        <option value="Quinta-feira">Quinta-feira</option>
+                        <option value="Sexta-feira">Sexta-feira</option>
+                        <option value="Sábado">Sábado</option>
+                        <option value="Domingo">Domingo</option>
+                    </select>
+                </div>
+
+                <div class="p-3 bg-dark border border-purple-900/50 rounded-lg text-xs text-purple-300 flex items-start gap-2">
+                    <i class="fa-solid fa-circle-info text-sm mt-0.5 shrink-0 text-purple-400"></i>
+                    <span>Isso carregará os exercícios para você ajustar (excluir cardio, mudar pesos) e salvar no histórico do dia atual sem alterar a rotina fixa.</span>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-3 mt-6 border-t border-gray-800 pt-4">
+                <button onclick="closeModals()" class="px-4 py-2 text-gray-400 hover:text-white transition-colors">Cancelar</button>
+                <!-- ATUALIZADO PARA startExceptionMode -->
+                <button onclick="startExceptionMode()" class="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg font-medium transition-colors">
+                    <i class="fa-solid fa-pen-to-square mr-1"></i> Carregar e Editar
+                </button>
+            </div>
         </div>
     </div>
 

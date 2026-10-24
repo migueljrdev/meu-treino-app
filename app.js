@@ -22,6 +22,11 @@ const daysOfWeek = ['Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-fei
 let currentDay = 'Segunda-feira';
 let workoutData = {};
 
+// Variáveis de controle do Modo Exceção
+let exceptionMode = false;
+let exceptionSourceDay = '';
+let exceptionExercises = [];
+
 const docRef = doc(db, "treinos", "meu_treino_principal");
 const historyRef = doc(db, "treinos", "meu_historico_principal");
 
@@ -60,15 +65,52 @@ window.renderDays = function() {
         const btn = document.createElement('button');
         btn.className = `whitespace-nowrap px-4 py-2 rounded-full text-sm font-medium transition-colors ${day === currentDay ? 'bg-brand text-white' : 'bg-card text-gray-400 hover:text-white border border-gray-800'}`;
         btn.innerText = day.split('-')[0];
-        btn.onclick = () => { currentDay = day; window.renderDays(); window.renderExercises(); };
+        btn.onclick = () => { 
+            if(exceptionMode) {
+                if(!confirm("Você está em Modo Exceção. Deseja cancelar a exceção atual e trocar de dia?")) return;
+                window.cancelExceptionMode();
+            }
+            currentDay = day; 
+            window.renderDays(); 
+            window.renderExercises(); 
+        };
         container.appendChild(btn);
     });
 }
 
 window.renderExercises = function() {
-    document.getElementById('currentDayTitle').innerText = currentDay;
+    const titleContainer = document.getElementById('currentDayTitle');
     
-    const exercises = workoutData[currentDay] || [];
+    // Se estiver em modo exceção, exibe um banner de aviso no topo da tabela
+    let bannerHtml = document.getElementById('exceptionBanner');
+    if (!bannerHtml) {
+        bannerHtml = document.createElement('div');
+        bannerHtml.id = 'exceptionBanner';
+        document.querySelector('.bg-card').prepend(bannerHtml);
+    }
+
+    if (exceptionMode) {
+        titleContainer.innerHTML = `${currentDay} <span class="text-xs bg-purple-900 text-purple-200 px-2 py-0.5 rounded ml-2">Exceção (Copiado de ${exceptionSourceDay})</span>`;
+        bannerHtml.innerHTML = `
+            <div class="bg-purple-900/40 border border-purple-700 p-4 rounded-xl mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                <div class="text-purple-300 text-sm flex items-center gap-2">
+                    <i class="fa-solid fa-shuffle text-purple-400 text-lg"></i>
+                    <span><strong>Modo Exceção Ativo:</strong> Você pode editar, excluir ou remover itens abaixo. Isso não afeta sua rotina fixa.</span>
+                </div>
+                <div class="flex gap-2 w-full sm:w-auto">
+                    <button onclick="cancelExceptionMode()" class="flex-1 sm:flex-none bg-gray-700 hover:bg-gray-650 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition-colors">Cancelar</button>
+                    <button onclick="saveExceptionToHistory()" class="flex-1 sm:flex-none bg-purple-600 hover:bg-purple-700 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"><i class="fa-solid fa-cloud-arrow-up mr-1"></i> Salvar no Histórico</button>
+                </div>
+            </div>
+        `;
+    } else {
+        titleContainer.innerText = currentDay;
+        bannerHtml.innerHTML = '';
+    }
+    
+    // Define se lê da exceção temporária ou da base fixa
+    const exercises = exceptionMode ? exceptionExercises : (workoutData[currentDay] || []);
+    
     const emptyState = document.getElementById('emptyState');
     const strengthSection = document.getElementById('strengthSection');
     const cardioSection = document.getElementById('cardioSection');
@@ -163,9 +205,9 @@ window.renderExercises = function() {
     }
 }
 
-// NOVA FUNÇÃO: Subir ou Descer exercício na lista
+// Subir ou Descer exercício na lista
 window.moveExercise = function(id, direction) {
-    const exercises = workoutData[currentDay];
+    const exercises = exceptionMode ? exceptionExercises : workoutData[currentDay];
     const ex = exercises.find(e => e.id === id);
     if (!ex) return;
 
@@ -181,11 +223,10 @@ window.moveExercise = function(id, direction) {
     const mainIndex1 = exercises.findIndex(e => e.id === id);
     const mainIndex2 = exercises.findIndex(e => e.id === targetEx.id);
 
-    // Troca os elementos de posição na lista principal
     exercises[mainIndex1] = targetEx;
     exercises[mainIndex2] = ex;
 
-    saveToFirebase();
+    if (!exceptionMode) saveToFirebase();
     window.renderExercises();
 }
 
@@ -225,7 +266,8 @@ window.openAddModal = function() {
 }
 
 window.editExercise = function(id) {
-    const ex = workoutData[currentDay].find(e => e.id === id);
+    const exercisesList = exceptionMode ? exceptionExercises : workoutData[currentDay];
+    const ex = exercisesList.find(e => e.id === id);
     if(ex) {
         document.getElementById('modalTitle').innerText = 'Editar Exercício';
         document.getElementById('editId').value = ex.id;
@@ -296,23 +338,36 @@ window.saveExercise = function() {
 
     if(id) {
         exerciseObj.id = parseInt(id);
-        const index = workoutData[currentDay].findIndex(e => e.id == id);
-        if(index > -1) workoutData[currentDay][index] = exerciseObj;
+        if (exceptionMode) {
+            const index = exceptionExercises.findIndex(e => e.id == id);
+            if(index > -1) exceptionExercises[index] = exerciseObj;
+        } else {
+            const index = workoutData[currentDay].findIndex(e => e.id == id);
+            if(index > -1) workoutData[currentDay][index] = exerciseObj;
+        }
     } else {
         exerciseObj.id = Date.now();
-        if(!workoutData[currentDay]) workoutData[currentDay] = [];
-        workoutData[currentDay].push(exerciseObj);
+        if (exceptionMode) {
+            exceptionExercises.push(exerciseObj);
+        } else {
+            if(!workoutData[currentDay]) workoutData[currentDay] = [];
+            workoutData[currentDay].push(exerciseObj);
+        }
     }
 
-    saveToFirebase();
+    if (!exceptionMode) saveToFirebase();
     window.closeModals();
     window.renderExercises();
 }
 
 window.deleteExercise = function(id) {
     if(confirm('Tem certeza que deseja excluir?')) {
-        workoutData[currentDay] = workoutData[currentDay].filter(e => e.id !== id);
-        saveToFirebase();
+        if (exceptionMode) {
+            exceptionExercises = exceptionExercises.filter(e => e.id !== id);
+        } else {
+            workoutData[currentDay] = workoutData[currentDay].filter(e => e.id !== id);
+            saveToFirebase();
+        }
         window.renderExercises();
     }
 }
@@ -330,7 +385,8 @@ window.resetData = function() {
 let currentSlide = 0;
 
 window.openMediaModal = function(id) {
-    const ex = workoutData[currentDay].find(e => e.id === id);
+    const exercisesList = exceptionMode ? exceptionExercises : workoutData[currentDay];
+    const ex = exercisesList.find(e => e.id === id);
     if (!ex) return;
 
     document.getElementById('mediaTitle').innerText = `Execução: ${ex.name}`;
@@ -389,9 +445,101 @@ window.moveSlide = function(direction) {
 window.closeModals = function() {
     document.getElementById('formModal').classList.replace('flex', 'hidden');
     document.getElementById('mediaModal').classList.replace('flex', 'hidden');
+    document.getElementById('exceptionModal').classList.replace('flex', 'hidden');
 }
 
-// Salvar treino do dia no Histórico (respeitando checkboxes)
+// --- CONTROLE DE MODO EXCEÇÃO ---
+window.openExceptionModal = function() {
+    document.getElementById('copyFromDaySelect').value = 'Segunda-feira';
+    document.getElementById('exceptionModal').classList.remove('hidden');
+    document.getElementById('exceptionModal').classList.add('flex');
+}
+
+window.startExceptionMode = function() {
+    const sourceDay = document.getElementById('copyFromDaySelect').value;
+    const sourceExercises = workoutData[sourceDay];
+
+    if (!sourceExercises || sourceExercises.length === 0) {
+        return alert(`O treino de ${sourceDay} está vazio! Adicione exercícios a ele primeiro.`);
+    }
+
+    exceptionMode = true;
+    exceptionSourceDay = sourceDay;
+    // Cria uma cópia profunda (deep copy) para poder editar sem alterar o original
+    exceptionExercises = JSON.parse(JSON.stringify(sourceExercises));
+
+    closeModals();
+    renderExercises();
+    alert(`Modo Exceção ativado! Você pode excluir o cardio, ajustar pesos e organizar os exercícios antes de salvar.`);
+}
+
+window.cancelExceptionMode = function() {
+    exceptionMode = false;
+    exceptionExercises = [];
+    exceptionSourceDay = '';
+    renderExercises();
+}
+
+window.saveExceptionToHistory = async function() {
+    if (exceptionExercises.length === 0) {
+        return alert("Não há exercícios para salvar!");
+    }
+
+    const d = new Date();
+    const currentJsDay = d.getDay() === 0 ? 6 : d.getDay() - 1; 
+    const targetJsDay = daysOfWeek.indexOf(currentDay);
+    const diff = targetJsDay - currentJsDay;
+    
+    const workoutDate = new Date(d);
+    workoutDate.setDate(d.getDate() + diff);
+
+    const targetStr = `${workoutDate.getFullYear()}-${String(workoutDate.getMonth()+1).padStart(2, '0')}-${String(workoutDate.getDate()).padStart(2, '0')}`;
+    const [y, m, day] = targetStr.split('-');
+    const dataFormatada = `${day}/${m}/${y}`;
+
+    if (!confirm(`Confirma salvar este treino adaptado no histórico do dia ${dataFormatada}?`)) {
+        return;
+    }
+
+    document.getElementById('statusText').innerHTML = '<i class="fa-solid fa-arrows-rotate fa-spin text-purple-500 mr-1"></i> Salvando exceção...';
+
+    try {
+        const exercisesSnapshot = exceptionExercises.map(ex => {
+            const checkbox = document.getElementById(`check-${ex.id}`);
+            const isCompleted = checkbox ? checkbox.checked : true;
+            return {
+                ...ex,
+                completed: isCompleted
+            };
+        });
+
+        const snap = await getDoc(historyRef);
+        let historyData = snap.exists() ? snap.data() : {};
+
+        historyData[targetStr] = {
+            dayName: currentDay,
+            isException: true,
+            copiedFrom: exceptionSourceDay,
+            exercises: exercisesSnapshot 
+        };
+
+        await setDoc(historyRef, historyData);
+        document.getElementById('statusText').innerHTML = '<i class="fa-solid fa-check text-green-500 mr-1"></i> Exceção salva!';
+        
+        alert(`Parabéns! Treino de exceção gravado com sucesso no dia ${dataFormatada}!`);
+        
+        // Sai do modo exceção e retorna ao normal
+        exceptionMode = false;
+        exceptionExercises = [];
+        exceptionSourceDay = '';
+        renderExercises();
+    } catch (error) {
+        console.error("Erro ao salvar exceção:", error);
+        alert("Erro ao registrar treino de exceção.");
+    }
+}
+
+// Salvar treino normal do dia no Histórico (respeitando checkboxes)
 window.finishTodayWorkout = async function() {
     const exercisesToday = workoutData[currentDay];
     

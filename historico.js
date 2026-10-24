@@ -118,7 +118,14 @@ window.showDayDetails = function(dateStr) {
     }
 
     const data = rawHistoryData[dateStr];
-    title.innerHTML = `${brDate} <span class="text-white text-sm ml-2 bg-gray-800 px-2 py-1 rounded">(${data.dayName})</span>`;
+    
+    // Tag visual para identificar treinos de exceção no histórico
+    let exceptionBadge = '';
+    if (data.isException) {
+        exceptionBadge = `<span class="text-xs bg-purple-900/60 text-purple-300 border border-purple-700 px-2 py-0.5 rounded ml-2 font-normal"><i class="fa-solid fa-shuffle mr-1"></i>Adaptado de ${data.copiedFrom}</span>`;
+    }
+
+    title.innerHTML = `${brDate} <span class="text-white text-sm ml-2 bg-gray-800 px-2 py-1 rounded">(${data.dayName})</span> ${exceptionBadge}`;
 
     data.exercises.forEach(ex => {
         let details = '';
