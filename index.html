@@ -20,7 +20,10 @@
                 <h1 class="text-2xl font-bold text-white"><i class="fa-solid fa-dumbbell text-brand mr-2"></i>Evolução de Treino</h1>
                 <p class="text-gray-400 text-sm mt-1" id="statusText">Conectando à nuvem...</p>
             </div>
-            <div class="flex gap-4">
+            <div class="flex gap-4 items-center">
+                <button onclick="openArchiveModal()" class="text-gray-300 hover:text-white text-sm font-medium transition-colors flex items-center" title="Treinos Arquivados">
+                    <i class="fa-solid fa-box-archive text-yellow-500 mr-1.5"></i> Arquivados
+                </button>
                 <a href="historico.html" class="text-brand hover:text-brandHover text-sm font-medium transition-colors flex items-center">
                     <i class="fa-regular fa-calendar-check mr-1"></i> Histórico
                 </a>
@@ -30,7 +33,7 @@
             </div>
         </header>
 
-        <div class="flex overflow-x-auto scrollbar-hide space-x-2 mb-6 pb-2" id="daysContainer"></div>
+        <div class="flex overflow-x-auto scrollbar-hide space-x-2 mb-6 pb-2 justify-between" id="daysContainer"></div>
 
         <div class="bg-card rounded-xl p-4 md:p-6 shadow-lg border border-gray-800 relative">
             
@@ -38,26 +41,39 @@
                 <i class="fa-solid fa-circle-notch fa-spin text-brand text-3xl"></i>
             </div>
 
+            <!-- CABEÇALHO DO CARD (TÍTULO, SELETOR E BOTÕES RESPONSIVOS) -->
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-                <h2 class="text-xl font-semibold text-white" id="currentDayTitle">Carregando...</h2>
-                <div class="flex gap-2 w-full sm:w-auto flex-wrap sm:flex-nowrap">
+                <div class="flex items-center gap-3 flex-wrap">
+                    <h2 class="text-xl font-semibold text-white" id="currentDayTitle">Carregando...</h2>
+                    
+                    <!-- SELETOR DE VARIAÇÃO (TREINO A, B, C) -->
+                    <div id="workoutVariantSelector" class="hidden bg-dark border border-gray-800 rounded-lg p-1 gap-1 items-center">
+                        <button onclick="switchVariant(0)" id="varBtn0" class="px-2.5 py-1 text-xs font-medium rounded transition-colors bg-brand text-white">Treino A</button>
+                        <button onclick="switchVariant(1)" id="varBtn1" class="px-2.5 py-1 text-xs font-medium rounded transition-colors text-gray-400 hover:text-white">Treino B</button>
+                        <button onclick="switchVariant(2)" id="varBtn2" class="px-2.5 py-1 text-xs font-medium rounded transition-colors text-gray-400 hover:text-white">Treino C</button>
+                    </div>
+                </div>
+
+                <!-- GRUPO DE BOTÕES DE AÇÃO (EMPILHADOS NO MOBILE, LADO A LADO NO DESKTOP) -->
+                <div class="flex flex-col sm:flex-row gap-2 w-full justify-end">
                     <!-- BOTÃO DE CONCLUIR TREINO FIXO -->
-                    <button id="btnFinishFixed" onclick="finishTodayWorkout()" class="flex-1 sm:flex-none bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors">
+                    <button id="btnFinishFixed" onclick="finishTodayWorkout()" class="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center">
                         <i class="fa-solid fa-check mr-1"></i> Concluir Fixo
                     </button>
 
                     <!-- BOTÃO: TREINO EXCEÇÃO / EXTRA -->
-                    <button id="btnException" onclick="openExceptionModal()" class="flex-1 sm:flex-none bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors" title="Registrar um treino diferente ou compensatório hoje">
+                    <button id="btnException" onclick="openExceptionModal()" class="bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center" title="Registrar um treino diferente ou compensatório hoje">
                         <i class="fa-solid fa-shuffle mr-1"></i> Treino Exceção
                     </button>
 
-                    <button onclick="openAddModal()" class="flex-1 sm:flex-none bg-brand hover:bg-brandHover text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors">
+                    <!-- BOTÃO ADICIONAR -->
+                    <button onclick="openAddModal()" class="bg-brand hover:bg-brandHover text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center">
                         <i class="fa-solid fa-plus mr-1"></i> Adicionar
                     </button>
                 </div>
             </div>
 
-            <!-- BANNER DE MODO EXCEÇÃO (FIXO NO HTML PARA O TAILWIND COMPILAR) -->
+            <!-- BANNER DE MODO EXCEÇÃO -->
             <div id="exceptionBannerWrapper" class="hidden bg-purple-900/40 border border-purple-700/60 p-4 rounded-xl mb-6 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
                 <div class="flex items-start sm:items-center gap-3 text-purple-200 text-sm">
                     <i class="fa-solid fa-shuffle text-purple-400 text-lg mt-0.5 sm:mt-0 shrink-0"></i>
@@ -100,13 +116,41 @@
         </div>
     </div>
 
+    <!-- MODAL: TREINOS ARQUIVADOS (SAVE/RESTORE) -->
+    <div id="archiveModal" class="fixed inset-0 bg-black/80 hidden items-center justify-center z-50 p-4">
+        <div class="bg-card w-full max-w-lg rounded-xl p-6 border border-gray-800 relative max-h-[90vh] flex flex-col">
+            <button onclick="closeModals()" class="absolute top-4 right-4 text-gray-400 hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
+            
+            <h3 class="text-xl font-bold text-white mb-2"><i class="fa-solid fa-box-archive text-yellow-500 mr-2"></i>Treinos Arquivados</h3>
+            <p class="text-gray-400 text-sm mb-4">Guarde uma cópia da sua rotina atual completa ou restaure um treino antigo salvo.</p>
+
+            <div class="bg-dark p-3.5 rounded-lg border border-gray-800 mb-4">
+                <label class="block text-xs font-semibold text-gray-300 uppercase mb-2">Arquivar Rotina Atual</label>
+                <div class="flex gap-2">
+                    <input type="text" id="archiveNameInput" placeholder="Ex: Treino Hipertrofia 2026" class="flex-1 bg-card border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-yellow-500">
+                    <button onclick="saveCurrentToArchive()" class="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap">
+                        <i class="fa-solid fa-floppy-disk mr-1"></i> Arquivar
+                    </button>
+                </div>
+            </div>
+
+            <h4 class="text-xs font-semibold text-gray-400 uppercase mb-2">Rotinas Salvas</h4>
+            <div id="archivedList" class="space-y-2 overflow-y-auto flex-1 pr-1">
+                <!-- Lista gerada via JS -->
+            </div>
+
+            <div class="flex justify-end mt-4 border-t border-gray-800 pt-4">
+                <button onclick="closeModals()" class="px-4 py-2 text-gray-400 hover:text-white transition-colors text-sm">Fechar</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal Adicionar/Editar -->
     <div id="formModal" class="fixed inset-0 bg-black/80 hidden items-center justify-center z-50 p-4">
         <div class="bg-card w-full max-w-md rounded-xl p-6 border border-gray-800">
             <h3 class="text-xl font-bold text-white mb-4" id="modalTitle">Adicionar Exercício</h3>
             <input type="hidden" id="editId">
             
-            <!-- Escolha do Tipo -->
             <div class="flex gap-6 mb-4 border-b border-gray-800 pb-4">
                 <label class="flex items-center text-gray-300 cursor-pointer hover:text-white">
                     <input type="radio" name="exType" value="strength" class="mr-2 accent-brand" checked onclick="toggleType()"> Musculação
@@ -122,13 +166,11 @@
                     <input type="text" id="exName" class="w-full bg-dark border border-gray-700 rounded-lg px-4 py-2 text-white">
                 </div>
 
-                <!-- CAMPO: GIFS / IMAGENS -->
                 <div>
                     <label class="block text-sm text-gray-400 mb-1">GIFs / Imagens (separe por vírgula)</label>
                     <input type="text" id="exImage" placeholder="Ex: src/images/p1.jpg, https://site.com/gif.gif" class="w-full bg-dark border border-gray-700 rounded-lg px-4 py-2 text-white placeholder-gray-600">
                 </div>
 
-                <!-- Campos de Musculação -->
                 <div id="strengthFields" class="grid grid-cols-3 gap-4">
                     <div>
                         <label class="block text-sm text-gray-400 mb-1">Séries</label>
@@ -154,7 +196,6 @@
                     </div>
                 </div>
 
-                <!-- Campos de Cardio -->
                 <div id="cardioFields" class="hidden grid-cols-3 gap-4">
                     <div>
                         <label class="block text-sm text-gray-400 mb-1">Dist. (km)</label>
@@ -220,7 +261,7 @@
 
                 <div class="p-3 bg-dark border border-purple-900/50 rounded-lg text-xs text-purple-300 flex items-start gap-2">
                     <i class="fa-solid fa-circle-info text-sm mt-0.5 shrink-0 text-purple-400"></i>
-                    <span>Isso carregará os exercícios para você ajustar (excluir cardio, mudar pesos) e salvar no histórico do dia atual sem alterar a rotina fixa.</span>
+                    <span>Isso carregará os exercícios para você ajustar e salvar no histórico do dia atual sem alterar a rotina fixa.</span>
                 </div>
             </div>
 

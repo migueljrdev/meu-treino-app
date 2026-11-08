@@ -6,12 +6,12 @@ import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gsta
 // COLOQUE SUAS CHAVES DO FIREBASE AQUI
 // ==========================================
 const firebaseConfig = {
-  apiKey: "AIzaSyCVwshlGT_fpe-EdiYZDu0pPNrF9SexsFY",
-  authDomain: "meu-treino-eabf2.firebaseapp.com",
-  projectId: "meu-treino-eabf2",
-  storageBucket: "meu-treino-eabf2.firebasestorage.app",
-  messagingSenderId: "1007083750494",
-  appId: "1:1007083750494:web:cc75113ed18a78dbbca0cf"
+    apiKey: "AIzaSyCVwshlGT_fpe-EdiYZDu0pPNrF9SexsFY",
+    authDomain: "meu-treino-eabf2.firebaseapp.com",
+    projectId: "meu-treino-eabf2",
+    storageBucket: "meu-treino-eabf2.firebasestorage.app",
+    messagingSenderId: "1007083750494",
+    appId: "1:1007083750494:web:cc75113ed18a78dbbca0cf"
 };
 
 const app = initializeApp(firebaseConfig);
@@ -45,13 +45,30 @@ async function loadHistory() {
         
         if (snapHist.exists()) rawHistoryData = snapHist.data();
         if (snapWork.exists()) {
-            currentWorkoutData = snapWork.data();
+            const rawData = snapWork.data();
+            // Normaliza os dados para garantir compatibilidade com o formato de 3 treinos (A, B, C)
+            currentWorkoutData = {};
+            const daysOfWeek = ['Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado', 'Domingo'];
+            daysOfWeek.forEach(day => {
+                const dayData = rawData[day];
+                if (Array.isArray(dayData)) {
+                    currentWorkoutData[day] = { activeVariant: 0, variants: [dayData, [], []] };
+                } else if (dayData && dayData.variants) {
+                    while (dayData.variants.length < 3) {
+                        dayData.variants.push([]);
+                    }
+                    currentWorkoutData[day] = dayData;
+                } else {
+                    currentWorkoutData[day] = { activeVariant: 0, variants: [[], [], []] };
+                }
+            });
         } else {
-            currentWorkoutData = { 'Segunda-feira': [], 'Terça-feira': [], 'Quarta-feira': [], 'Quinta-feira': [], 'Sexta-feira': [], 'Sábado': [], 'Domingo': [] };
+            currentWorkoutData = {};
         }
 
         document.getElementById('historyStatus').innerHTML = '<i class="fa-solid fa-cloud text-green-500 mr-1"></i> Dados atualizados';
         renderCalendar();
+        if(window.renderProgress) renderProgress();
     } catch (error) {
         console.error(error);
         document.getElementById('historyStatus').innerHTML = '<i class="fa-solid fa-triangle-exclamation text-red-500 mr-1"></i> Erro ao carregar';
@@ -119,7 +136,6 @@ window.showDayDetails = function(dateStr) {
 
     const data = rawHistoryData[dateStr];
     
-    // Tag visual para identificar treinos de exceção no histórico
     let exceptionBadge = '';
     if (data.isException) {
         exceptionBadge = `<span class="text-xs bg-purple-900/60 text-purple-300 border border-purple-700 px-2 py-0.5 rounded ml-2 font-normal"><i class="fa-solid fa-shuffle mr-1"></i>Adaptado de ${data.copiedFrom}</span>`;
@@ -152,7 +168,7 @@ window.showDayDetails = function(dateStr) {
     detailsDiv.classList.remove('hidden');
 }
 
-// --- COMPARAR EVOLUÇÃO (SEPARANDO MUSCULAÇÃO E CARDIO CORRETAMENTE) ---
+// --- COMPARAR EVOLUÇÃO (LENDO A LETRA ATIVA DO TREINO: A, B ou C) ---
 window.renderProgress = function() {
     const dayName = document.getElementById('daySelect').value;
     const thead = document.getElementById('progressTableHeader');
@@ -174,22 +190,37 @@ window.renderProgress = function() {
     let last4Dates = historyDates.slice(0, 4);
     last4Dates.sort((a, b) => a.localeCompare(b));
 
+    // Identifica qual é o Treino Ativo (A, B ou C) do dia selecionado para exibir no título da coluna "Atual"
+    const dayObj = currentWorkoutData[dayName];
+    let activeVarIndex = 0;
+    if (dayObj && dayObj.activeVariant !== undefined) {
+        activeVarIndex = dayObj.activeVariant;
+    }
+    const currentLetter = ['A', 'B', 'C'][activeVarIndex];
+
     let headerHtml = `<th class="pb-3 font-medium whitespace-nowrap">Exercício</th>`;
     last4Dates.forEach(dateStr => {
         const [y, m, d] = dateStr.split('-');
         headerHtml += `<th class="pb-3 font-medium text-center">${d}/${m}</th>`;
     });
-    headerHtml += `<th class="pb-3 font-medium text-center text-brand">Atual</th>`;
+    headerHtml += `<th class="pb-3 font-medium text-center text-brand">Atual (Treino ${currentLetter})</th>`;
     thead.innerHTML = headerHtml;
 
-    const currentExercises = currentWorkoutData[dayName] || [];
+    // Obtém os exercícios da variante ativa correspondente
+    let currentExercises = [];
+    if (dayObj) {
+        if (Array.isArray(dayObj)) {
+            currentExercises = dayObj;
+        } else if (dayObj.variants) {
+            currentExercises = dayObj.variants[activeVarIndex] || [];
+        }
+    }
 
     const uniqueExNames = new Set(currentExercises.map(e => e.name));
     last4Dates.forEach(dateStr => {
         rawHistoryData[dateStr].exercises.forEach(e => uniqueExNames.add(e.name));
     });
 
-    // Função auxiliar para identificar o tipo do exercício de forma segura
     function getExType(name) {
         let curr = currentExercises.find(e => e.name === name);
         if (curr) return curr.type || 'strength';
@@ -203,7 +234,6 @@ window.renderProgress = function() {
     const strengthNames = [];
     const cardioNames = [];
 
-    // Separa ordenadamente com base no treino atual
     currentExercises.forEach(ex => {
         const type = ex.type || 'strength';
         if (type === 'cardio') {
@@ -213,7 +243,6 @@ window.renderProgress = function() {
         }
     });
 
-    // Inclui eventuais exercícios antigos que constam no histórico mas não na rotina atual
     uniqueExNames.forEach(name => {
         if (!strengthNames.includes(name) && !cardioNames.includes(name)) {
             const type = getExType(name);
@@ -225,7 +254,6 @@ window.renderProgress = function() {
         }
     });
 
-    // Junta mantendo a Musculação sempre no topo e o Cardio na base
     const finalExList = [...strengthNames, ...cardioNames];
 
     if (finalExList.length === 0) {
