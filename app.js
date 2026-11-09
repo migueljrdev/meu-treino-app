@@ -20,9 +20,26 @@ const auth = getAuth(app);
 
 const daysOfWeek = ['Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado', 'Domingo'];
 let currentDay = 'Segunda-feira';
-let workoutData = {};
-let archivedData = {};
 
+// ESTRUTURA GLOBAL (0: Treino A, 1: Treino B, 2: Treino C)
+let masterWorkouts = {
+    "0": [],
+    "1": [],
+    "2": []
+};
+
+// dayAssignments: Guarda o treino (0, 1, 2) ou 'rest' para cada dia
+let dayAssignments = {
+    "Segunda-feira": 0,
+    "Terça-feira": 1,
+    "Quarta-feira": 'rest',
+    "Quinta-feira": 2,
+    "Sexta-feira": 0,
+    "Sábado": 'rest',
+    "Domingo": 'rest'
+};
+
+let archivedData = {};
 let exceptionMode = false;
 let exceptionSourceDay = '';
 let exceptionExercises = [];
@@ -44,37 +61,31 @@ async function loadFromFirebase() {
 
         if (docSnap.exists()) {
             const rawData = docSnap.data();
-            workoutData = {};
-            daysOfWeek.forEach(day => {
-                const dayData = rawData[day];
-                if (Array.isArray(dayData)) {
-                    workoutData[day] = {
-                        activeVariant: 0,
-                        variants: { "0": dayData, "1": [], "2": [] }
-                    };
-                } else if (dayData && dayData.variants) {
-                    // Se variants ainda for um array antigo, converte para objeto map
-                    if (Array.isArray(dayData.variants)) {
-                        const newVariants = { "0": [], "1": [], "2": [] };
-                        dayData.variants.forEach((arr, idx) => {
-                            newVariants[idx] = arr || [];
-                        });
-                        dayData.variants = newVariants;
+            
+            if (rawData.masterWorkouts && rawData.dayAssignments) {
+                masterWorkouts = rawData.masterWorkouts;
+                dayAssignments = rawData.dayAssignments;
+            } else {
+                masterWorkouts = { "0": [], "1": [], "2": [] };
+                daysOfWeek.forEach(day => { dayAssignments[day] = 0; });
+
+                if (rawData["Segunda-feira"]) {
+                    const seg = rawData["Segunda-feira"];
+                    if (seg.variants) {
+                        const v = seg.variants;
+                        masterWorkouts["0"] = v["0"] || v[0] || [];
+                        masterWorkouts["1"] = v["1"] || v[1] || [];
+                        masterWorkouts["2"] = v["2"] || v[2] || [];
+                    } else if (Array.isArray(seg)) {
+                        masterWorkouts["0"] = seg;
                     }
-                    workoutData[day] = dayData;
-                } else {
-                    workoutData[day] = {
-                        activeVariant: 0,
-                        variants: { "0": [], "1": [], "2": [] }
-                    };
                 }
-            });
+            }
         } else {
-            workoutData = {};
-            daysOfWeek.forEach(day => {
-                workoutData[day] = { activeVariant: 0, variants: { "0": [], "1": [], "2": [] } };
-            });
+            masterWorkouts = { "0": [], "1": [], "2": [] };
+            daysOfWeek.forEach(day => { dayAssignments[day] = 0; });
         }
+
         document.getElementById('statusText').innerHTML = '<i class="fa-solid fa-cloud text-green-500 mr-1"></i> Salvo na nuvem';
         document.getElementById('loadingOverlay').classList.add('hidden');
         window.renderDays();
@@ -88,26 +99,27 @@ async function loadFromFirebase() {
 async function saveToFirebase() {
     try {
         document.getElementById('statusText').innerHTML = '<i class="fa-solid fa-arrows-rotate fa-spin text-brand mr-1"></i> Salvando...';
-        await setDoc(docRef, workoutData);
+        const dataToSave = {
+            masterWorkouts,
+            dayAssignments
+        };
+        await setDoc(docRef, dataToSave);
         document.getElementById('statusText').innerHTML = '<i class="fa-solid fa-cloud text-green-500 mr-1"></i> Salvo na nuvem';
     } catch (error) {
         console.error("Erro ao salvar:", error);
+        document.getElementById('statusText').innerHTML = '<i class="fa-solid fa-triangle-exclamation text-red-500 mr-1"></i> Erro ao salvar';
     }
 }
 
 function getCurrentExercisesRef() {
-    if (!workoutData[currentDay]) {
-        workoutData[currentDay] = { activeVariant: 0, variants: { "0": [], "1": [], "2": [] } };
+    const activeVar = dayAssignments[currentDay];
+    if (activeVar === 'rest' || activeVar === undefined) {
+        return [];
     }
-    const dayObj = workoutData[currentDay];
-    if (!dayObj.variants || Array.isArray(dayObj.variants)) {
-        dayObj.variants = { "0": [], "1": [], "2": [] };
+    if (!masterWorkouts[activeVar]) {
+        masterWorkouts[activeVar] = [];
     }
-    if (dayObj.activeVariant === undefined) dayObj.activeVariant = 0;
-    if (!dayObj.variants[dayObj.activeVariant]) {
-        dayObj.variants[dayObj.activeVariant] = [];
-    }
-    return dayObj.variants[dayObj.activeVariant];
+    return masterWorkouts[activeVar];
 }
 
 window.renderDays = function() {
@@ -116,8 +128,20 @@ window.renderDays = function() {
     container.innerHTML = '';
     daysOfWeek.forEach(day => {
         const btn = document.createElement('button');
-        btn.className = `whitespace-nowrap px-5 py-2 rounded-xl text-lg font-medium transition-colors ${day === currentDay ? 'bg-brand text-white' : 'bg-card text-gray-400 hover:text-white border border-gray-800'}`;
-        btn.innerText = day.split('-')[0];
+        const assignment = dayAssignments[day] !== undefined ? dayAssignments[day] : 0;
+        
+        let labelTag = '';
+        if (assignment === 'rest') {
+            labelTag = `<span class="text-[10px] md:text-xs opacity-70 bg-black/20 px-1.5 py-0.5 rounded text-blue-300">Off</span>`;
+        } else {
+            const letter = ['A', 'B', 'C'][assignment];
+            labelTag = `<span class="text-[10px] md:text-xs opacity-80 bg-black/20 px-1.5 py-0.5 rounded">(${letter})</span>`;
+        }
+
+        // Classes adaptadas: largura total nas colunas do desktop e ajuste de texto para não esmagar
+        btn.className = `whitespace-nowrap px-3 md:px-1 py-2 rounded-full text-xs md:text-xs font-medium transition-colors flex items-center justify-center gap-1 md:gap-0.5 md:w-full ${day === currentDay ? 'bg-brand text-white' : 'bg-card text-gray-400 hover:text-white border border-gray-800'}`;
+        btn.innerHTML = `${day.split('-')[0]} ${labelTag}`;
+        
         btn.onclick = () => { 
             if(exceptionMode) {
                 if(!confirm("Você está em Modo Exceção. Deseja cancelar a exceção atual e trocar de dia?")) return;
@@ -131,16 +155,16 @@ window.renderDays = function() {
     });
 }
 
+// Alterna qual treino global (A, B, C ou 'rest') o dia atual vai executar
 window.switchVariant = function(varIndex) {
     if (exceptionMode) {
         if(!confirm("Você está em Modo Exceção. Deseja cancelar a exceção atual e trocar de treino?")) return;
         window.cancelExceptionMode();
     }
-    if (workoutData[currentDay]) {
-        workoutData[currentDay].activeVariant = varIndex;
-        saveToFirebase();
-        renderExercises();
-    }
+    dayAssignments[currentDay] = varIndex;
+    saveToFirebase();
+    window.renderDays();
+    window.renderExercises();
 }
 
 window.renderExercises = function() {
@@ -151,6 +175,9 @@ window.renderExercises = function() {
     const btnFinishFixed = document.getElementById('btnFinishFixed');
     const btnException = document.getElementById('btnException');
     const variantSelector = document.getElementById('workoutVariantSelector');
+    const strengthSection = document.getElementById('strengthSection');
+    const cardioSection = document.getElementById('cardioSection');
+    const emptyState = document.getElementById('emptyState');
 
     if (exceptionMode) {
         if (btnFinishFixed) btnFinishFixed.classList.add('hidden');
@@ -160,32 +187,63 @@ window.renderExercises = function() {
 
         titleContainer.innerHTML = `${currentDay} <span class="text-xs bg-purple-900 text-purple-200 px-2 py-0.5 rounded ml-2">Exceção (Copiado de ${exceptionSourceDay})</span>`;
     } else {
-        if (btnFinishFixed) btnFinishFixed.classList.remove('hidden');
         if (btnException) btnException.classList.remove('hidden');
         if (bannerWrapper) bannerWrapper.classList.add('hidden');
 
         if (variantSelector) {
             variantSelector.classList.remove('hidden');
             variantSelector.classList.add('flex');
-            const activeVar = workoutData[currentDay]?.activeVariant || 0;
-            for(let i = 0; i < 3; i++) {
+            const activeVar = dayAssignments[currentDay];
+            
+            // Atualiza classes dos botões A, B, C, Rest
+            ['0', '1', '2'].forEach(i => {
                 const btnEl = document.getElementById(`varBtn${i}`);
                 if(btnEl) {
-                    btnEl.className = `px-3 py-1 text-xs font-medium rounded transition-colors ${activeVar === i ? 'bg-brand text-white' : 'text-gray-400 hover:text-white'}`;
+                    btnEl.className = `px-2.5 py-1 text-xs font-medium rounded transition-colors ${activeVar === Number(i) ? 'bg-brand text-white' : 'text-gray-400 hover:text-white'}`;
                 }
+            });
+            const restBtn = document.getElementById('varBtnRest');
+            if(restBtn) {
+                restBtn.className = `px-2.5 py-1 text-xs font-medium rounded transition-colors ${activeVar === 'rest' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'}`;
             }
         }
 
-        const activeVarNum = workoutData[currentDay]?.activeVariant || 0;
-        const letterName = ['A', 'B', 'C'][activeVarNum];
-        titleContainer.innerHTML = `${currentDay} <span class="text-xs text-brand font-bold ml-2">(Treino ${letterName})</span>`;
+        const activeVar = dayAssignments[currentDay];
+        if (activeVar === 'rest') {
+            if (btnFinishFixed) btnFinishFixed.classList.add('hidden');
+            titleContainer.innerHTML = `${currentDay} <span class="text-xs text-blue-400 font-bold ml-2"><i class="fa-solid fa-bed mr-1"></i>Dia de Descanso</span>`;
+        } else {
+            if (btnFinishFixed) btnFinishFixed.classList.remove('hidden');
+            const letterName = ['A', 'B', 'C'][activeVar];
+            titleContainer.innerHTML = `${currentDay} <span class="text-xs text-brand font-bold ml-2">(Executando Treino ${letterName})</span>`;
+        }
+    }
+    
+    // Se for dia de descanso e não estiver em modo exceção
+    if (dayAssignments[currentDay] === 'rest' && !exceptionMode) {
+        if(strengthSection) strengthSection.classList.add('hidden');
+        if(cardioSection) cardioSection.classList.add('hidden');
+        if(emptyState) {
+            emptyState.classList.remove('hidden');
+            emptyState.innerHTML = `
+                <div class="py-8">
+                    <i class="fa-solid fa-mug-hot text-5xl text-blue-400/60 mb-3"></i>
+                    <h4 class="text-white font-semibold text-lg">Dia de Recuperação</h4>
+                    <p class="text-gray-400 text-sm mt-1 max-w-sm mx-auto">Aproveite para descansar e deixar seus músculos crescerem. Nenhum treino agendado para hoje.</p>
+                </div>
+            `;
+        }
+        return;
+    } else {
+        if(emptyState) {
+            emptyState.innerHTML = `
+                <i class="fa-solid fa-folder-open text-4xl text-gray-600 mb-3"></i>
+                <p class="text-gray-400">Nenhum exercício para este dia.</p>
+            `;
+        }
     }
     
     const exercises = exceptionMode ? exceptionExercises : getCurrentExercisesRef();
-    
-    const emptyState = document.getElementById('emptyState');
-    const strengthSection = document.getElementById('strengthSection');
-    const cardioSection = document.getElementById('cardioSection');
     const list = document.getElementById('exerciseList');
     const cardioList = document.getElementById('cardioList');
     
@@ -213,7 +271,6 @@ window.renderExercises = function() {
             tr.className = 'border-b border-gray-800 hover:bg-gray-800/30';
             
             const pesoExibicao = (ex.weight > 0) ? `${ex.weight}kg` : '<span class="text-[10px] uppercase text-gray-500">Corporal</span>';
-            
             const isFirst = index === 0;
             const isLast = index === strengthEx.length - 1;
 
@@ -244,7 +301,6 @@ window.renderExercises = function() {
         cardioEx.forEach((ex, index) => {
             const div = document.createElement('div');
             div.className = 'flex justify-between items-center bg-dark border border-gray-800 p-4 rounded-lg';
-            
             const isFirst = index === 0;
             const isLast = index === cardioEx.length - 1;
 
@@ -290,7 +346,6 @@ window.moveExercise = function(id, direction) {
     if (targetSubIndex < 0 || targetSubIndex >= sameTypeExs.length) return;
 
     const targetEx = sameTypeExs[targetSubIndex];
-    
     const mainIndex1 = exercises.findIndex(e => e.id === id);
     const mainIndex2 = exercises.findIndex(e => e.id === targetEx.id);
 
@@ -303,7 +358,6 @@ window.moveExercise = function(id, direction) {
 
 window.toggleType = function() {
     const type = document.querySelector('input[name="exType"]:checked').value;
-    
     if (type === 'cardio') {
         document.getElementById('strengthFields').classList.remove('grid');
         document.getElementById('strengthFields').classList.add('hidden');
@@ -318,6 +372,9 @@ window.toggleType = function() {
 }
 
 window.openAddModal = function() {
+    if (dayAssignments[currentDay] === 'rest' && !exceptionMode) {
+        return alert("Este dia está configurado como Descanso. Mude para o Treino A, B ou C para adicionar exercícios.");
+    }
     document.getElementById('modalTitle').innerText = 'Adicionar Exercício';
     document.getElementById('editId').value = '';
     ['exName', 'exImage', 'exSets', 'exReps', 'exWeight', 'exDistance', 'exTime'].forEach(id => {
@@ -327,7 +384,6 @@ window.openAddModal = function() {
     
     document.getElementById('exRepsUnit').value = ''; 
     document.getElementById('exPace').value = 'Leve';
-    
     document.querySelector('input[value="strength"]').checked = true;
     window.toggleType();
 
@@ -350,7 +406,6 @@ window.editExercise = function(id) {
 
         if (type === 'strength') {
             document.getElementById('exSets').value = ex.sets;
-            
             let repsStr = String(ex.reps || "");
             if (repsStr.includes('min')) {
                 document.getElementById('exReps').value = repsStr.replace('min', '').trim();
@@ -362,7 +417,6 @@ window.editExercise = function(id) {
                 document.getElementById('exReps').value = repsStr;
                 document.getElementById('exRepsUnit').value = '';
             }
-
             document.getElementById('exWeight').value = ex.weight;
         } else {
             document.getElementById('exDistance').value = ex.distance;
@@ -387,7 +441,6 @@ window.saveExercise = function() {
 
     if (type === 'strength') {
         exerciseObj.sets = Math.abs(parseInt(document.getElementById('exSets').value) || 0);
-        
         const repsValue = Math.abs(parseInt(document.getElementById('exReps').value) || 0);
         const repsUnit = document.getElementById('exRepsUnit').value;
         
@@ -398,7 +451,6 @@ window.saveExercise = function() {
         } else {
             exerciseObj.reps = repsValue + repsUnit; 
         }
-        
         exerciseObj.weight = Math.abs(parseFloat(document.getElementById('exWeight').value) || 0);
     } else {
         exerciseObj.distance = Math.abs(parseFloat(document.getElementById('exDistance').value) || 0);
@@ -436,9 +488,8 @@ window.deleteExercise = function(id) {
         if (exceptionMode) {
             exceptionExercises = exceptionExercises.filter(e => e.id !== id);
         } else {
-            const currentExs = getCurrentExercisesRef();
-            const filtered = currentExs.filter(e => e.id !== id);
-            workoutData[currentDay].variants[workoutData[currentDay].activeVariant] = filtered;
+            const activeVar = dayAssignments[currentDay];
+            masterWorkouts[activeVar] = masterWorkouts[activeVar].filter(e => e.id !== id);
             saveToFirebase();
         }
         window.renderExercises();
@@ -447,17 +498,14 @@ window.deleteExercise = function(id) {
 
 window.resetData = function() {
     if(confirm('Isso apagará seus treinos. Continuar?')) {
-        workoutData = {};
-        daysOfWeek.forEach(day => {
-            workoutData[day] = { activeVariant: 0, variants: { "0": [], "1": [], "2": [] } };
-        });
+        masterWorkouts = { "0": [], "1": [], "2": [] };
+        daysOfWeek.forEach(day => { dayAssignments[day] = 0; });
         saveToFirebase();
         window.renderDays();
         window.renderExercises();
     }
 }
 
-// Media / Carrossel e Fechar
 let currentSlide = 0;
 
 window.openMediaModal = function(id) {
@@ -469,12 +517,10 @@ window.openMediaModal = function(id) {
     document.getElementById('youtubeBtn').href = `https://www.youtube.com/results?search_query=${encodeURIComponent('Como fazer ' + ex.name + ' corretamente')}`;
 
     const carouselContainer = document.querySelector('#mediaModal .carousel-container');
-    
     const images = ex.image ? ex.image.split(',').map(i => i.trim()).filter(i => i.length > 0) : [];
 
     if (images.length > 0) {
         let slidesHtml = '';
-        
         images.forEach((imgUrl, index) => {
             slidesHtml += `
                 <div class="carousel-slide ${index === 0 ? 'active' : ''} flex items-center justify-center bg-black/50 rounded-lg overflow-hidden w-full h-full" style="height: 100%;">
@@ -489,7 +535,6 @@ window.openMediaModal = function(id) {
                 <button class="carousel-btn next" onclick="moveSlide(1)"><i class="fa-solid fa-chevron-right"></i></button>
             `;
         }
-
         carouselContainer.innerHTML = slidesHtml;
     } else {
         carouselContainer.innerHTML = `
@@ -510,7 +555,6 @@ window.moveSlide = function(direction) {
     if (slides.length <= 1) return;
 
     slides[currentSlide].classList.remove('active');
-    
     currentSlide += direction;
     if (currentSlide < 0) currentSlide = slides.length - 1;
     if (currentSlide >= slides.length) currentSlide = 0;
@@ -519,14 +563,10 @@ window.moveSlide = function(direction) {
 }
 
 window.closeModals = function() {
-    const formModal = document.getElementById('formModal');
-    const mediaModal = document.getElementById('mediaModal');
-    const exceptionModal = document.getElementById('exceptionModal');
-    const archiveModal = document.getElementById('archiveModal');
-    if (formModal) formModal.classList.replace('flex', 'hidden');
-    if (mediaModal) mediaModal.classList.replace('flex', 'hidden');
-    if (exceptionModal) exceptionModal.classList.replace('flex', 'hidden');
-    if (archiveModal) archiveModal.classList.replace('flex', 'hidden');
+    ['formModal', 'mediaModal', 'exceptionModal', 'archiveModal'].forEach(id => {
+        const modal = document.getElementById(id);
+        if (modal) modal.classList.replace('flex', 'hidden');
+    });
 }
 
 // --- CONTROLE DE MODO EXCEÇÃO ---
@@ -538,18 +578,15 @@ window.openExceptionModal = function() {
 
 window.startExceptionMode = function() {
     const sourceDay = document.getElementById('copyFromDaySelect').value;
-    const dayObj = workoutData[sourceDay];
-    let sourceExercises = [];
-    if (dayObj) {
-        if (dayObj.variants) {
-            sourceExercises = dayObj.variants[dayObj.activeVariant || 0] || [];
-        } else if (Array.isArray(dayObj)) {
-            sourceExercises = dayObj;
-        }
+    const sourceVar = dayAssignments[sourceDay];
+    
+    if (sourceVar === 'rest') {
+        return alert(`O dia ${sourceDay} é um dia de Descanso! Escolha um dia que possua treino.`);
     }
 
+    const sourceExercises = masterWorkouts[sourceVar] || [];
     if (!sourceExercises || sourceExercises.length === 0) {
-        return alert(`O treino ativo de ${sourceDay} está vazio! Adicione exercícios a ele primeiro.`);
+        return alert(`O treino de ${sourceDay} está vazio! Adicione exercícios a ele primeiro.`);
     }
 
     exceptionMode = true;
@@ -568,9 +605,7 @@ window.cancelExceptionMode = function() {
 }
 
 window.saveExceptionToHistory = async function() {
-    if (exceptionExercises.length === 0) {
-        return alert("Não há exercícios para salvar!");
-    }
+    if (exceptionExercises.length === 0) return alert("Não há exercícios para salvar!");
 
     const d = new Date();
     const currentJsDay = d.getDay() === 0 ? 6 : d.getDay() - 1; 
@@ -584,9 +619,7 @@ window.saveExceptionToHistory = async function() {
     const [y, m, day] = targetStr.split('-');
     const dataFormatada = `${day}/${m}/${y}`;
 
-    if (!confirm(`Confirma salvar este treino adaptado no histórico do dia ${dataFormatada}?`)) {
-        return;
-    }
+    if (!confirm(`Confirma salvar este treino adaptado no histórico do dia ${dataFormatada}?`)) return;
 
     document.getElementById('statusText').innerHTML = '<i class="fa-solid fa-arrows-rotate fa-spin text-purple-500 mr-1"></i> Salvando exceção...';
 
@@ -594,10 +627,7 @@ window.saveExceptionToHistory = async function() {
         const exercisesSnapshot = exceptionExercises.map(ex => {
             const checkbox = document.getElementById(`check-${ex.id}`);
             const isCompleted = checkbox ? checkbox.checked : true;
-            return {
-                ...ex,
-                completed: isCompleted
-            };
+            return { ...ex, completed: isCompleted };
         });
 
         const snap = await getDoc(historyRef);
@@ -612,7 +642,6 @@ window.saveExceptionToHistory = async function() {
 
         await setDoc(historyRef, historyData);
         document.getElementById('statusText').innerHTML = '<i class="fa-solid fa-cloud text-green-500 mr-1"></i> Salvo na nuvem';
-        
         alert(`Parabéns! Treino de exceção gravado com sucesso no dia ${dataFormatada}!`);
         
         exceptionMode = false;
@@ -627,15 +656,11 @@ window.saveExceptionToHistory = async function() {
 
 window.finishTodayWorkout = async function() {
     const exercisesToday = getCurrentExercisesRef();
-    
-    if (!exercisesToday || exercisesToday.length === 0) {
-        return alert("Não há exercícios neste dia para concluir!");
-    }
+    if (!exercisesToday || exercisesToday.length === 0) return alert("Não há exercícios neste dia para concluir!");
 
     const d = new Date();
     const currentJsDay = d.getDay() === 0 ? 6 : d.getDay() - 1; 
     const targetJsDay = daysOfWeek.indexOf(currentDay);
-    
     const diff = targetJsDay - currentJsDay;
     
     const workoutDate = new Date(d);
@@ -645,9 +670,7 @@ window.finishTodayWorkout = async function() {
     const [y, m, day] = targetStr.split('-');
     const dataFormatada = `${day}/${m}/${y}`;
 
-    if(!confirm(`Deseja registrar este treino para o dia ${dataFormatada} (${currentDay})?`)) {
-        return;
-    }
+    if(!confirm(`Deseja registrar este treino para o dia ${dataFormatada} (${currentDay})?`)) return;
     
     document.getElementById('statusText').innerHTML = '<i class="fa-solid fa-arrows-rotate fa-spin text-green-500 mr-1"></i> Registrando histórico...';
 
@@ -655,10 +678,7 @@ window.finishTodayWorkout = async function() {
         const exercisesSnapshot = exercisesToday.map(ex => {
             const checkbox = document.getElementById(`check-${ex.id}`);
             const isCompleted = checkbox ? checkbox.checked : true;
-            return {
-                ...ex,
-                completed: isCompleted
-            };
+            return { ...ex, completed: isCompleted };
         });
 
         const snap = await getDoc(historyRef);
@@ -671,7 +691,6 @@ window.finishTodayWorkout = async function() {
 
         await setDoc(historyRef, historyData);
         document.getElementById('statusText').innerHTML = '<i class="fa-solid fa-cloud text-green-500 mr-1"></i> Salvo na nuvem';
-        
         alert(`Parabéns! O treino de ${currentDay} foi registrado no dia ${dataFormatada}!`);
     } catch (error) {
         console.error("Erro ao salvar histórico:", error);
@@ -679,12 +698,11 @@ window.finishTodayWorkout = async function() {
     }
 }
 
-// --- SISTEMA DE ARQUIVAR / RESTAURAR TREINOS (CORRIGIDO) ---
+// --- SISTEMA DE ARQUIVAR / RESTAURAR TREINOS ---
 window.openArchiveModal = function() {
     renderArchiveList();
-    const modal = document.getElementById('archiveModal');
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
+    document.getElementById('archiveModal').classList.remove('hidden');
+    document.getElementById('archiveModal').classList.add('flex');
 }
 
 function renderArchiveList() {
@@ -726,10 +744,7 @@ function renderArchiveList() {
 window.saveCurrentToArchive = async function() {
     const input = document.getElementById('archiveNameInput');
     const archiveName = input.value.trim();
-
-    if (!archiveName) {
-        return alert("Digite um nome para identificar esta cópia do treino.");
-    }
+    if (!archiveName) return alert("Digite um nome para identificar esta cópia do treino.");
 
     document.getElementById('statusText').innerHTML = '<i class="fa-solid fa-arrows-rotate fa-spin text-yellow-500 mr-1"></i> Arquivando...';
 
@@ -738,14 +753,14 @@ window.saveCurrentToArchive = async function() {
         const newArchiveItem = {
             name: archiveName,
             savedAt: new Date().toISOString(),
-            data: JSON.parse(JSON.stringify(workoutData))
+            data: {
+                masterWorkouts: JSON.parse(JSON.stringify(masterWorkouts)),
+                dayAssignments: JSON.parse(JSON.stringify(dayAssignments))
+            }
         };
 
         const updatedArchives = { ...archivedData, [archiveKey]: newArchiveItem };
-
-        // Salva primeiro no Firebase antes de atualizar a interface
         await setDoc(archiveRef, updatedArchives);
-
         archivedData = updatedArchives;
 
         document.getElementById('statusText').innerHTML = '<i class="fa-solid fa-cloud text-green-500 mr-1"></i> Salvo na nuvem';
@@ -762,12 +777,16 @@ window.saveCurrentToArchive = async function() {
 window.restoreArchive = async function(key) {
     const item = archivedData[key];
     if (!item) return;
+    if (!confirm(`Deseja carregar a rotina "${item.name}" na tela principal? Isso substituirá sua rotina ativa atual.`)) return;
 
-    if (!confirm(`Deseja carregar a rotina "${item.name}" na tela principal? Isso substituirá sua rotina ativa atual.`)) {
-        return;
+    if (item.data && item.data.masterWorkouts) {
+        masterWorkouts = JSON.parse(JSON.stringify(item.data.masterWorkouts));
+        dayAssignments = JSON.parse(JSON.stringify(item.data.dayAssignments));
+    } else {
+        masterWorkouts = { "0": [], "1": [], "2": [] };
+        daysOfWeek.forEach(d => dayAssignments[d] = 0);
     }
 
-    workoutData = JSON.parse(JSON.stringify(item.data));
     await saveToFirebase();
     window.renderDays();
     window.renderExercises();
@@ -778,10 +797,7 @@ window.restoreArchive = async function(key) {
 window.deleteArchive = async function(key) {
     const item = archivedData[key];
     if (!item) return;
-
-    if (!confirm(`Tem certeza que deseja apagar a cópia arquivada "${item.name}"?`)) {
-        return;
-    }
+    if (!confirm(`Tem certeza que deseja apagar a cópia arquivada "${item.name}"?`)) return;
 
     try {
         const updatedArchives = { ...archivedData };
@@ -799,5 +815,5 @@ window.deleteArchive = async function(key) {
 // Inicializa
 onAuthStateChanged(auth, async (user) => {
     if (user) { loadFromFirebase(); } 
-    else { await signInAnonymously(auth); }
+    else { signInAnonymously(auth); }
 });

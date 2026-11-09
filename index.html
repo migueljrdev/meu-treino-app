@@ -11,6 +11,17 @@
     
     <!-- Seu CSS Personalizado e Compilado do Tailwind -->
     <link rel="stylesheet" href="style.css">
+    
+    <style>
+        /* Garante que o scroll horizontal funcione perfeitamente e sem barras feias */
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+        .scrollbar-hide {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
 </head>
 <body class="min-h-screen p-4 md:p-8">
 
@@ -33,7 +44,8 @@
             </div>
         </header>
 
-        <div class="flex overflow-x-auto scrollbar-hide space-x-2 mb-6 pb-2 justify-between" id="daysContainer"></div>
+        <!-- CONTAINER DOS DIAS: ROLAGEM NO MOBILE E 7 COLUNAS NO DESKTOP -->
+        <div class="flex md:grid md:grid-cols-7 overflow-x-auto md:overflow-visible scrollbar-hide space-x-2 md:space-x-0 gap-2 mb-6 pb-2 px-1" id="daysContainer"></div>
 
         <div class="bg-card rounded-xl p-4 md:p-6 shadow-lg border border-gray-800 relative">
             
@@ -41,33 +53,31 @@
                 <i class="fa-solid fa-circle-notch fa-spin text-brand text-3xl"></i>
             </div>
 
-            <!-- CABEÇALHO DO CARD (TÍTULO, SELETOR E BOTÕES RESPONSIVOS) -->
+            <!-- CABEÇALHO DO CARD -->
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
                 <div class="flex items-center gap-3 flex-wrap">
                     <h2 class="text-xl font-semibold text-white" id="currentDayTitle">Carregando...</h2>
                     
-                    <!-- SELETOR DE VARIAÇÃO (TREINO A, B, C) -->
-                    <div id="workoutVariantSelector" class="hidden bg-dark border border-gray-800 rounded-lg p-1 gap-1 items-center">
-                        <button onclick="switchVariant(0)" id="varBtn0" class="px-2.5 py-1 text-xs font-medium rounded transition-colors bg-brand text-white">Treino A</button>
-                        <button onclick="switchVariant(1)" id="varBtn1" class="px-2.5 py-1 text-xs font-medium rounded transition-colors text-gray-400 hover:text-white">Treino B</button>
-                        <button onclick="switchVariant(2)" id="varBtn2" class="px-2.5 py-1 text-xs font-medium rounded transition-colors text-gray-400 hover:text-white">Treino C</button>
+                    <!-- SELETOR DE VARIAÇÃO (TREINO A, B, C ou DESCANSO) COM WRAP CONTROLADO -->
+                    <div id="workoutVariantSelector" class="hidden bg-dark border border-gray-800 rounded-lg p-1 gap-1 items-center flex-nowrap overflow-x-auto scrollbar-hide max-w-full">
+                        <button onclick="switchVariant(0)" id="varBtn0" class="px-2.5 py-1 text-xs font-medium rounded transition-colors bg-brand text-white whitespace-nowrap shrink-0">Treino A</button>
+                        <button onclick="switchVariant(1)" id="varBtn1" class="px-2.5 py-1 text-xs font-medium rounded transition-colors text-gray-400 hover:text-white whitespace-nowrap shrink-0">Treino B</button>
+                        <button onclick="switchVariant(2)" id="varBtn2" class="px-2.5 py-1 text-xs font-medium rounded transition-colors text-gray-400 hover:text-white whitespace-nowrap shrink-0">Treino C</button>
+                        <button onclick="switchVariant('rest')" id="varBtnRest" class="px-2.5 py-1 text-xs font-medium rounded transition-colors text-gray-400 hover:text-white whitespace-nowrap shrink-0 flex items-center"><i class="fa-solid fa-bed mr-1"></i>Descanso</button>
                     </div>
                 </div>
 
-                <!-- GRUPO DE BOTÕES DE AÇÃO (EMPILHADOS NO MOBILE, LADO A LADO NO DESKTOP) -->
-                <div class="flex flex-col sm:flex-row gap-2 w-full justify-end">
-                    <!-- BOTÃO DE CONCLUIR TREINO FIXO -->
-                    <button id="btnFinishFixed" onclick="finishTodayWorkout()" class="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center">
+                <!-- BOTÕES DE AÇÃO ALINHADOS À DIREITA -->
+                <div class="flex flex-col sm:flex-row gap-2 w-full sm:w-auto justify-end">
+                    <button id="btnFinishFixed" onclick="finishTodayWorkout()" class="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center whitespace-nowrap">
                         <i class="fa-solid fa-check mr-1"></i> Concluir Fixo
                     </button>
 
-                    <!-- BOTÃO: TREINO EXCEÇÃO / EXTRA -->
-                    <button id="btnException" onclick="openExceptionModal()" class="bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center" title="Registrar um treino diferente ou compensatório hoje">
+                    <button id="btnException" onclick="openExceptionModal()" class="bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center whitespace-nowrap" title="Registrar um treino diferente ou compensatório hoje">
                         <i class="fa-solid fa-shuffle mr-1"></i> Treino Exceção
                     </button>
 
-                    <!-- BOTÃO ADICIONAR -->
-                    <button onclick="openAddModal()" class="bg-brand hover:bg-brandHover text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center">
+                    <button onclick="openAddModal()" class="bg-brand hover:bg-brandHover text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center whitespace-nowrap">
                         <i class="fa-solid fa-plus mr-1"></i> Adicionar
                     </button>
                 </div>
